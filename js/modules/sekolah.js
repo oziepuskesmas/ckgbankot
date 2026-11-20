@@ -1494,11 +1494,11 @@ function applySekolahFilter() {
 // 📱 RESPONSIVE PAGINATION ENGINE (DESKTOP: 10 DATA, MOBILE/APK: 3 DATA)
 // ==========================================================================
 
-let currentSekolahPage = 1;
-let lastSekolahFilterSignature = '';
+var currentSekolahPage = (typeof currentSekolahPage !== 'undefined') ? currentSekolahPage : 1;
+var lastSekolahFilterSignature = (typeof lastSekolahFilterSignature !== 'undefined') ? lastSekolahFilterSignature : '';
 
-let currentCkgGratisPage = 1;
-let lastCkgGratisFilterSignature = '';
+var currentCkgGratisPage = (typeof currentCkgGratisPage !== 'undefined') ? currentCkgGratisPage : 1;
+var lastCkgGratisFilterSignature = (typeof lastCkgGratisFilterSignature !== 'undefined') ? lastCkgGratisFilterSignature : '';
 
 function isMobileOrApkView() {
   if (typeof window === 'undefined') return false;
