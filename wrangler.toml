@@ -1,5 +1,5 @@
 # Cloudflare Pages & Workers Configuration
-name = "aplikasi-info-ckg"
+name = "ckgbankot"
 main = "_worker.js"
 compatibility_date = "2024-08-01"
 
