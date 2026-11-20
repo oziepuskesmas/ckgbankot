@@ -1414,7 +1414,7 @@ function switchView(viewId) {
     : (typeof DEFAULT_MENU_CONFIG !== 'undefined' ? DEFAULT_MENU_CONFIG.find(m => m.id === viewId) : null);
 
   if (menuConfig) {
-    if (menuConfig.enabled === false && role !== 'admin') {
+    if (menuConfig.enabled === false) {
       Swal.fire({
         icon: 'info',
         title: 'Menu Dinonaktifkan',

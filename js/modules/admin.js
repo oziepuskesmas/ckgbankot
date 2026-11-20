@@ -121,13 +121,10 @@ function applyMenuConfiguration() {
       }
 
       if (item.enabled === false) {
-        if (role !== 'admin') {
-          btn.style.display = 'none';
-          return;
-        } else {
-          btn.style.opacity = '0.55';
-          btn.title = `${item.label} (Dinonaktifkan)`;
-        }
+        btn.style.display = 'none';
+        btn.style.opacity = '0.55';
+        btn.title = `${item.label} (Dinonaktifkan)`;
+        return;
       } else {
         btn.style.opacity = '1';
         btn.title = item.label;
