@@ -1,0 +1,4078 @@
+// Cloudflare Workers Module Entry Point with D1 Database API Router
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Content-Type': 'application/json'
+    };
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    // Ping route for latency checking
+    if (url.pathname === '/api/ping') {
+      return new Response(JSON.stringify({ success: true, timestamp: Date.now() }), { headers: corsHeaders });
+    }
+
+    // ROUTE: /api/apk/version (Pengecekan Pembaruan Aplikasi APK Mobile)
+    if (url.pathname === '/api/apk/version') {
+      return new Response(JSON.stringify({
+        success: true,
+        latestVersion: '1.0.0',
+        versionCode: 1,
+        minVersion: '1.0.0',
+        updateAvailable: false,
+        downloadUrl: 'https://ckgbankot.web.id/download/app-release.apk',
+        releaseNotes: 'Pembaruan stabilitas CKG Mobile, optimasi mode gelap, dan batasan 5 baris anti-lag.',
+        releaseDate: '2026-11-20',
+        timestamp: Date.now()
+      }), {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+      });
+    }
+
+    // 1. ROUTE: /api/users
+    if (url.pathname === '/api/users' || url.pathname.startsWith('/api/users/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+
+      if (request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare('SELECT nama_user, password, role FROM users ORDER BY id ASC').all();
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const users = Array.isArray(body) ? body : [body];
+          const stmt = env.DB.prepare(`
+            INSERT INTO users (nama_user, password, role) VALUES (?, ?, ?)
+            ON CONFLICT(nama_user) DO UPDATE SET
+              password = excluded.password,
+              role = excluded.role
+          `);
+          const statements = users.map(u => stmt.bind(u.nama_user, u.password || '', u.role || 'Petugas'));
+          await env.DB.batch(statements);
+          return new Response(JSON.stringify({ success: true, count: users.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          const nama_user = url.searchParams.get('nama_user');
+          if (!nama_user) {
+            return new Response(JSON.stringify({ success: false, error: 'nama_user parameter required' }), { status: 400, headers: corsHeaders });
+          }
+          await env.DB.prepare('DELETE FROM users WHERE nama_user = ?').bind(nama_user).run();
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+
+    // 2. ROUTE: /api/simpus (Split: simpus_belum_bagi & simpus_sudah_bagi)
+    if (url.pathname === '/api/simpus' || url.pathname.startsWith('/api/simpus/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
+          status: 500, headers: corsHeaders
+        });
+      }
+
+      // Auto-create both tables & high-performance indexes
+      try {
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS simpus_belum_bagi (
+          id TEXT PRIMARY KEY, no INTEGER, nama TEXT, nik TEXT, tanggal TEXT, dob TEXT,
+          usia INTEGER, status_pernikahan TEXT, provinsi TEXT, kab_kota TEXT, kecamatan TEXT,
+          kelurahan TEXT, alamat TEXT, bb REAL, tb REAL, imt REAL, sistol INTEGER, diastol INTEGER,
+          gula TEXT, kolesterol TEXT, keterangan TEXT, entry_status TEXT DEFAULT 'belum', raw_json TEXT
+        )`).run();
+      } catch (_) { }
+      try {
+        await env.DB.prepare(`CREATE TABLE IF NOT EXISTS simpus_sudah_bagi (
+          id TEXT PRIMARY KEY, no INTEGER, petugas_entry TEXT, assigned_to TEXT,
+          nama TEXT, nik TEXT, tanggal TEXT, dob TEXT, usia INTEGER, status_pernikahan TEXT,
+          provinsi TEXT, kab_kota TEXT, kecamatan TEXT, kelurahan TEXT, alamat TEXT,
+          bb REAL, tb REAL, imt REAL, sistol INTEGER, diastol INTEGER,
+          gula TEXT, kolesterol TEXT, keterangan TEXT, entry_status TEXT DEFAULT 'belum', raw_json TEXT
+        )`).run();
+      } catch (_) { }
+      try {
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_simpus_sudah_assigned ON simpus_sudah_bagi(assigned_to)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_simpus_sudah_nik ON simpus_sudah_bagi(nik)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_simpus_sudah_tanggal ON simpus_sudah_bagi(tanggal)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_simpus_belum_nik ON simpus_belum_bagi(nik)').run();
+      } catch (_) { }
+
+      // One-time migration from old simpus_records table
+      try {
+        const { results: check } = await env.DB.prepare('SELECT COUNT(*) as cnt FROM simpus_records').all();
+        if (check && check[0] && check[0].cnt > 0) {
+          try {
+            await env.DB.prepare(`INSERT OR IGNORE INTO simpus_belum_bagi
+              (id,no,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json)
+              SELECT id,no,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json
+              FROM simpus_records WHERE is_divided = 0 OR is_divided IS NULL`).run();
+          } catch (_) { }
+          try {
+            await env.DB.prepare(`INSERT OR IGNORE INTO simpus_sudah_bagi
+              (id,no,petugas_entry,assigned_to,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json)
+              SELECT id,no,petugas_entry,assigned_to,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json
+              FROM simpus_records WHERE is_divided = 1`).run();
+          } catch (_) { }
+          try { await env.DB.prepare('DROP TABLE simpus_records').run(); } catch (_) { }
+        }
+      } catch (_) { }
+
+      const tab = url.searchParams.get('tab') || '';
+
+      // SUB-ROUTE: /api/simpus/bagi (POST) — Move records from belum to sudah
+      if (url.pathname === '/api/simpus/bagi' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const ids = body.ids || [];
+          const petugas = body.petugas || '';
+          if (!petugas || ids.length === 0) {
+            return new Response(JSON.stringify({ success: false, error: 'petugas and ids required' }), { status: 400, headers: corsHeaders });
+          }
+          let moved = 0;
+          for (const id of ids) {
+            try {
+              const { results } = await env.DB.prepare('SELECT * FROM simpus_belum_bagi WHERE id = ?').bind(id).all();
+              if (results && results.length > 0) {
+                const r = results[0];
+                await env.DB.prepare(`INSERT INTO simpus_sudah_bagi
+                  (id,no,petugas_entry,assigned_to,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                  ON CONFLICT(id) DO UPDATE SET petugas_entry=excluded.petugas_entry, assigned_to=excluded.assigned_to`
+                ).bind(
+                  r.id, r.no || 0, petugas, petugas,
+                  r.nama || '', r.nik || '', r.tanggal || '', r.dob || '', r.usia || 0,
+                  r.status_pernikahan || 'MENIKAH', r.provinsi || 'Jawa Barat', r.kab_kota || 'Kab. Bandung',
+                  r.kecamatan || 'Banjaran', r.kelurahan || 'Tarajusari', r.alamat || '',
+                  r.bb || 0, r.tb || 0, r.imt || 0, r.sistol || 0, r.diastol || 0,
+                  r.gula || '-', r.kolesterol || '-', r.keterangan || 'Dewasa',
+                  r.entry_status || 'belum', r.raw_json || '{}'
+                ).run();
+                await env.DB.prepare('DELETE FROM simpus_belum_bagi WHERE id = ?').bind(id).run();
+                moved++;
+              }
+            } catch (_) { }
+          }
+          return new Response(JSON.stringify({ success: true, moved }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // GET
+      if (request.method === 'GET') {
+        try {
+          // Auto cleanup: Ensure records in simpus_sudah_bagi DO NOT exist in simpus_belum_bagi
+          try {
+            await env.DB.prepare('DELETE FROM simpus_belum_bagi WHERE id IN (SELECT id FROM simpus_sudah_bagi)').run();
+            await env.DB.prepare("DELETE FROM simpus_belum_bagi WHERE nik IS NOT NULL AND nik != '' AND nik IN (SELECT nik FROM simpus_sudah_bagi WHERE nik IS NOT NULL AND nik != '')").run();
+          } catch (_) { }
+
+          const selectBelum = 'SELECT id, no, nama, nik, tanggal, dob, usia, status_pernikahan, provinsi, kab_kota, kecamatan, kelurahan, alamat, bb, tb, imt, sistol, diastol, gula, kolesterol, keterangan, entry_status FROM simpus_belum_bagi ORDER BY no ASC';
+          const selectSudah = 'SELECT id, no, petugas_entry, assigned_to, nama, nik, tanggal, dob, usia, status_pernikahan, provinsi, kab_kota, kecamatan, kelurahan, alamat, bb, tb, imt, sistol, diastol, gula, kolesterol, keterangan, entry_status FROM simpus_sudah_bagi ORDER BY no ASC';
+
+          if (tab === 'belum_bagi') {
+            const { results } = await env.DB.prepare(selectBelum).all();
+            const data = (results || []).map(r => ({ ...r, is_divided: false, petugas_entry: '', assigned_to: '' }));
+            return new Response(JSON.stringify({ success: true, count: data.length, data }), { headers: corsHeaders });
+          } else if (tab === 'sudah_bagi') {
+            const { results } = await env.DB.prepare(selectSudah).all();
+            const data = (results || []).map(r => ({ ...r, is_divided: true, petugas_entry: r.petugas_entry || '', assigned_to: r.assigned_to || '' }));
+            return new Response(JSON.stringify({ success: true, count: data.length, data }), { headers: corsHeaders });
+          } else {
+            const { results: b } = await env.DB.prepare(selectBelum).all();
+            const { results: s } = await env.DB.prepare(selectSudah).all();
+            const data = [
+              ...(b || []).map(r => ({ ...r, is_divided: false, petugas_entry: '', assigned_to: '' })),
+              ...(s || []).map(r => ({ ...r, is_divided: true, petugas_entry: r.petugas_entry || '', assigned_to: r.assigned_to || '' }))
+            ];
+            return new Response(JSON.stringify({ success: true, count: data.length, data }), { headers: corsHeaders });
+          }
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // POST
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const recs = Array.isArray(body) ? body : [body];
+          let inserted = 0;
+          const batchSize = 10;
+
+          if (tab === 'sudah_bagi') {
+            const sql = `INSERT INTO simpus_sudah_bagi
+              (id,no,petugas_entry,assigned_to,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              ON CONFLICT(id) DO UPDATE SET
+                no=excluded.no, petugas_entry=excluded.petugas_entry, assigned_to=excluded.assigned_to,
+                nama=excluded.nama, nik=excluded.nik, tanggal=excluded.tanggal, dob=excluded.dob,
+                usia=excluded.usia, status_pernikahan=excluded.status_pernikahan,
+                provinsi=excluded.provinsi, kab_kota=excluded.kab_kota, kecamatan=excluded.kecamatan,
+                kelurahan=excluded.kelurahan, alamat=excluded.alamat, bb=excluded.bb, tb=excluded.tb,
+                imt=excluded.imt, sistol=excluded.sistol, diastol=excluded.diastol,
+                gula=excluded.gula, kolesterol=excluded.kolesterol, keterangan=excluded.keterangan,
+                entry_status=excluded.entry_status, raw_json=excluded.raw_json ;`;
+            for (let i = 0; i < recs.length; i += batchSize) {
+              const chunk = recs.slice(i, i + batchSize);
+              const stmts = chunk.map(r => env.DB.prepare(sql).bind(
+                String(r.id || r.nik || `auto-${Date.now()}-${Math.random()}`), r.no || 0,
+                String(r.petugas_entry || r.assigned_to || ''), String(r.assigned_to || r.petugas_entry || ''),
+                String(r.nama || ''), String(r.nik || ''), String(r.tanggal || ''), String(r.dob || ''),
+                Number(r.usia) || 0, String(r.status_pernikahan || 'MENIKAH'),
+                String(r.provinsi || 'Jawa Barat'), String(r.kab_kota || 'Kab. Bandung'),
+                String(r.kecamatan || 'Banjaran'), String(r.kelurahan || 'Tarajusari'), String(r.alamat || ''),
+                Number(r.bb) || 0, Number(r.tb) || 0, Number(r.imt) || 0,
+                Number(r.sistol) || 0, Number(r.diastol) || 0,
+                String(r.gula || '-'), String(r.kolesterol || '-'), String(r.keterangan || 'Dewasa'),
+                String(r.entry_status || 'belum'), JSON.stringify(r)
+              ));
+              await env.DB.batch(stmts);
+              inserted += chunk.length;
+            }
+            try { await env.DB.prepare('DELETE FROM simpus_belum_bagi WHERE id IN (SELECT id FROM simpus_sudah_bagi)').run(); } catch (_) { }
+          } else {
+            const sql = `INSERT INTO simpus_belum_bagi
+              (id,no,nama,nik,tanggal,dob,usia,status_pernikahan,provinsi,kab_kota,kecamatan,kelurahan,alamat,bb,tb,imt,sistol,diastol,gula,kolesterol,keterangan,entry_status,raw_json)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+              ON CONFLICT(id) DO UPDATE SET
+                no=excluded.no, nama=excluded.nama, nik=excluded.nik,
+                tanggal=excluded.tanggal, dob=excluded.dob, usia=excluded.usia,
+                status_pernikahan=excluded.status_pernikahan,
+                provinsi=excluded.provinsi, kab_kota=excluded.kab_kota, kecamatan=excluded.kecamatan,
+                kelurahan=excluded.kelurahan, alamat=excluded.alamat, bb=excluded.bb, tb=excluded.tb,
+                imt=excluded.imt, sistol=excluded.sistol, diastol=excluded.diastol,
+                gula=excluded.gula, kolesterol=excluded.kolesterol, keterangan=excluded.keterangan,
+                entry_status=excluded.entry_status, raw_json=excluded.raw_json ;`;
+            for (let i = 0; i < recs.length; i += batchSize) {
+              const chunk = recs.slice(i, i + batchSize);
+              const stmts = chunk.map(r => env.DB.prepare(sql).bind(
+                String(r.id || r.nik || `auto-${Date.now()}-${Math.random()}`), r.no || 0,
+                String(r.nama || ''), String(r.nik || ''), String(r.tanggal || ''), String(r.dob || ''),
+                Number(r.usia) || 0, String(r.status_pernikahan || 'MENIKAH'),
+                String(r.provinsi || 'Jawa Barat'), String(r.kab_kota || 'Kab. Bandung'),
+                String(r.kecamatan || 'Banjaran'), String(r.kelurahan || 'Tarajusari'), String(r.alamat || ''),
+                Number(r.bb) || 0, Number(r.tb) || 0, Number(r.imt) || 0,
+                Number(r.sistol) || 0, Number(r.diastol) || 0,
+                String(r.gula || '-'), String(r.kolesterol || '-'), String(r.keterangan || 'Dewasa'),
+                String(r.entry_status || 'belum'), JSON.stringify(r)
+              ));
+              await env.DB.batch(stmts);
+              inserted += chunk.length;
+            }
+            try { await env.DB.prepare('DELETE FROM simpus_sudah_bagi WHERE id IN (SELECT id FROM simpus_belum_bagi)').run(); } catch (_) { }
+          }
+          return new Response(JSON.stringify({ success: true, count: inserted }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: String(err.message || err), stack: String(err.stack || '') }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // DELETE
+      if (request.method === 'DELETE') {
+        try {
+          let body = null;
+          try {
+            if (request.headers.get('content-type')?.includes('application/json')) {
+              body = await request.json();
+            }
+          } catch (_) { }
+
+          const id = url.searchParams.get('id') || body?.id;
+          const filter = url.searchParams.get('filter') || body?.filter;
+
+          if (id) {
+            if (tab === 'belum_bagi') {
+              await env.DB.prepare('DELETE FROM simpus_belum_bagi WHERE id = ?').bind(id).run();
+            } else if (tab === 'sudah_bagi') {
+              await env.DB.prepare('DELETE FROM simpus_sudah_bagi WHERE id = ?').bind(id).run();
+            } else {
+              await env.DB.prepare('DELETE FROM simpus_belum_bagi WHERE id = ?').bind(id).run();
+              await env.DB.prepare('DELETE FROM simpus_sudah_bagi WHERE id = ?').bind(id).run();
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'single' }), { headers: corsHeaders });
+          } else if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+            const batchSize = 50;
+            let totalDeleted = 0;
+            for (let i = 0; i < body.ids.length; i += batchSize) {
+              const chunk = body.ids.slice(i, i + batchSize);
+              const placeholders = chunk.map(() => '?').join(',');
+              if (tab === 'belum_bagi') {
+                await env.DB.prepare(`DELETE FROM simpus_belum_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+              } else if (tab === 'sudah_bagi') {
+                await env.DB.prepare(`DELETE FROM simpus_sudah_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+              } else {
+                await env.DB.prepare(`DELETE FROM simpus_belum_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+                await env.DB.prepare(`DELETE FROM simpus_sudah_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+              }
+              totalDeleted += chunk.length;
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'batch', count: totalDeleted }), { headers: corsHeaders });
+          } else if (filter === 'non_16_digit') {
+            const condition = `WHERE nik IS NULL OR TRIM(nik) = '' OR LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(nik, ' ', ''), '-', ''), '.', ''), '\'', '')) != 16`;
+            if (tab === 'belum_bagi') {
+              await env.DB.prepare(`DELETE FROM simpus_belum_bagi ${condition}`).run();
+            } else if (tab === 'sudah_bagi') {
+              await env.DB.prepare(`DELETE FROM simpus_sudah_bagi ${condition}`).run();
+            } else {
+              await env.DB.prepare(`DELETE FROM simpus_belum_bagi ${condition}`).run();
+              await env.DB.prepare(`DELETE FROM simpus_sudah_bagi ${condition}`).run();
+            }
+
+            if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+              const batchSize = 50;
+              for (let i = 0; i < body.ids.length; i += batchSize) {
+                const chunk = body.ids.slice(i, i + batchSize);
+                const placeholders = chunk.map(() => '?').join(',');
+                if (tab === 'belum_bagi') {
+                  await env.DB.prepare(`DELETE FROM simpus_belum_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+                } else if (tab === 'sudah_bagi') {
+                  await env.DB.prepare(`DELETE FROM simpus_sudah_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+                } else {
+                  await env.DB.prepare(`DELETE FROM simpus_belum_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+                  await env.DB.prepare(`DELETE FROM simpus_sudah_bagi WHERE id IN (${placeholders})`).bind(...chunk).run();
+                }
+              }
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'non_16_digit' }), { headers: corsHeaders });
+          } else {
+            if (tab === 'belum_bagi') {
+              await env.DB.prepare('DELETE FROM simpus_belum_bagi').run();
+            } else if (tab === 'sudah_bagi') {
+              await env.DB.prepare('DELETE FROM simpus_sudah_bagi').run();
+            } else {
+              await env.DB.prepare('DELETE FROM simpus_belum_bagi').run();
+              await env.DB.prepare('DELETE FROM simpus_sudah_bagi').run();
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'all' }), { headers: corsHeaders });
+          }
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+    }
+
+    // 3. ROUTE: /api/ckg
+    if (url.pathname === '/api/ckg' || url.pathname.startsWith('/api/ckg/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ckg_full_records (
+            id TEXT PRIMARY KEY,
+            nik TEXT,
+            nama_pasien TEXT,
+            petugas_entry TEXT,
+            tanggal_entry TEXT,
+            lokasi_pelayanan TEXT,
+            status_entry TEXT,
+            raw_json TEXT
+          )
+        `).run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_ckg_nik ON ckg_full_records(nik)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_ckg_petugas ON ckg_full_records(petugas_entry)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_ckg_tanggal ON ckg_full_records(tanggal_entry)').run();
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          let { results } = await env.DB.prepare('SELECT * FROM ckg_full_records ORDER BY rowid DESC').all();
+          if (!results || results.length === 0) {
+            try {
+              const legacy = await env.DB.prepare('SELECT * FROM ckg_records ORDER BY id DESC').all();
+              if (legacy && legacy.results && legacy.results.length > 0) {
+                results = legacy.results;
+              }
+            } catch (_) { }
+          }
+
+          const parsed = (results || []).map(r => {
+            let item = {};
+            if (r.raw_json) {
+              try { item = JSON.parse(r.raw_json); } catch (_) { }
+            }
+            return {
+              ...item,
+              id: item.id || (r.id ? (String(r.id).startsWith('CKG-') ? String(r.id) : `CKG-${r.id}`) : 'CKG-' + Date.now()),
+              nik: item.nik || r.nik || '',
+              nama: item.nama || item.nama_pasien || r.nama_pasien || '',
+              petugas_entry: item.petugas_entry || r.petugas_entry || 'Admin',
+              created_by: item.created_by || r.petugas_entry || 'Admin',
+              tanggal_entry: item.tanggal_entry || r.tanggal_entry || '',
+              created_at: item.created_at || r.tanggal_entry || '',
+              jenis_kegiatan: item.jenis_kegiatan || r.lokasi_pelayanan || 'Luar Gedung',
+              status_validasi: item.status_validasi || r.status_entry || 'Terverifikasi'
+            };
+          });
+          return new Response(JSON.stringify({ success: true, count: parsed.length, data: parsed }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const records = Array.isArray(body) ? body : [body];
+          const stmt = env.DB.prepare(`
+            INSERT INTO ckg_full_records (id, nik, nama_pasien, petugas_entry, tanggal_entry, lokasi_pelayanan, status_entry, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              nik = excluded.nik,
+              nama_pasien = excluded.nama_pasien,
+              petugas_entry = excluded.petugas_entry,
+              tanggal_entry = excluded.tanggal_entry,
+              lokasi_pelayanan = excluded.lokasi_pelayanan,
+              status_entry = excluded.status_entry,
+              raw_json = excluded.raw_json
+          `);
+          const statements = records.map(r => {
+            const recId = String(r.id || (r.nik ? `CKG-${r.nik}` : `CKG-${Date.now()}-${Math.floor(Math.random() * 10000)}`));
+            return stmt.bind(
+              recId,
+              r.nik || '',
+              r.nama || r.nama_pasien || '',
+              r.petugas_entry || r.created_by || 'Admin',
+              r.created_at || r.tanggal_entry || new Date().toISOString().substring(0, 10),
+              r.jenis_kegiatan || r.lokasi_pelayanan || 'Luar Gedung',
+              r.status_validasi || r.status_entry || 'Terverifikasi',
+              JSON.stringify(r)
+            );
+          });
+
+          // Chunk statements into max 20 per batch call for D1 reliability
+          const chunkSize = 20;
+          for (let i = 0; i < statements.length; i += chunkSize) {
+            const chunk = statements.slice(i, i + chunkSize);
+            await env.DB.batch(chunk);
+          }
+
+          return new Response(JSON.stringify({ success: true, count: records.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          let body = null;
+          try {
+            if (request.headers.get('content-type')?.includes('application/json')) {
+              body = await request.json();
+            }
+          } catch (_) { }
+
+          const id = url.searchParams.get('id') || body?.id;
+          const filter = url.searchParams.get('filter') || body?.filter;
+
+          if (id) {
+            await env.DB.prepare('DELETE FROM ckg_full_records WHERE id = ?').bind(id).run();
+            try { await env.DB.prepare('DELETE FROM ckg_records WHERE id = ?').bind(id).run(); } catch (_) { }
+            return new Response(JSON.stringify({ success: true, deleted: 'single' }), { headers: corsHeaders });
+          } else if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+            const batchSize = 50;
+            let totalDeleted = 0;
+            for (let i = 0; i < body.ids.length; i += batchSize) {
+              const chunk = body.ids.slice(i, i + batchSize);
+              const placeholders = chunk.map(() => '?').join(',');
+              await env.DB.prepare(`DELETE FROM ckg_full_records WHERE id IN (${placeholders})`).bind(...chunk).run();
+              try { await env.DB.prepare(`DELETE FROM ckg_records WHERE id IN (${placeholders})`).bind(...chunk).run(); } catch (_) { }
+              totalDeleted += chunk.length;
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'batch', count: totalDeleted }), { headers: corsHeaders });
+          } else if (filter === 'non_16_digit') {
+            const delRes = await env.DB.prepare(`
+              DELETE FROM ckg_full_records 
+              WHERE nik IS NULL 
+                 OR TRIM(nik) = '' 
+                 OR LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(nik, ' ', ''), '-', ''), '.', ''), '\'', '')) != 16
+            `).run();
+            try {
+              await env.DB.prepare(`
+                DELETE FROM ckg_records 
+                WHERE nik IS NULL 
+                   OR TRIM(nik) = '' 
+                   OR LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(nik, ' ', ''), '-', ''), '.', ''), '\'', '')) != 16
+              `).run();
+            } catch (_) { }
+
+            if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+              const batchSize = 50;
+              for (let i = 0; i < body.ids.length; i += batchSize) {
+                const chunk = body.ids.slice(i, i + batchSize);
+                const placeholders = chunk.map(() => '?').join(',');
+                await env.DB.prepare(`DELETE FROM ckg_full_records WHERE id IN (${placeholders})`).bind(...chunk).run();
+                try { await env.DB.prepare(`DELETE FROM ckg_records WHERE id IN (${placeholders})`).bind(...chunk).run(); } catch (_) { }
+              }
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'non_16_digit', changes: delRes?.meta?.changes }), { headers: corsHeaders });
+          } else {
+            await env.DB.prepare('DELETE FROM ckg_full_records').run();
+            // Also clear legacy ckg_records table to prevent data resurrection
+            try { await env.DB.prepare('DELETE FROM ckg_records').run(); } catch (_) { }
+            return new Response(JSON.stringify({ success: true, deleted: 'all' }), { headers: corsHeaders });
+          }
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 3.1 ROUTE: /api/ckg-gratis (Menu Cek Kesehatan Gratis - Standalone Dataset)
+    if (url.pathname === '/api/ckg-gratis' || url.pathname.startsWith('/api/ckg-gratis/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ckg_gratis_records (
+            id TEXT PRIMARY KEY,
+            nik TEXT,
+            nama_pasien TEXT,
+            petugas_entry TEXT,
+            tanggal_entry TEXT,
+            lokasi_pelayanan TEXT,
+            status_entry TEXT,
+            raw_json TEXT
+          )
+        `).run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_ckg_gratis_nik ON ckg_gratis_records(nik)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_ckg_gratis_petugas ON ckg_gratis_records(petugas_entry)').run();
+        await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_ckg_gratis_tanggal ON ckg_gratis_records(tanggal_entry)').run();
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          await env.DB.prepare(`
+            CREATE TABLE IF NOT EXISTS enco_pasien (
+              id TEXT PRIMARY KEY,
+              nik TEXT NOT NULL UNIQUE,
+              nama TEXT NOT NULL,
+              tanggal_lahir TEXT,
+              jenis_kelamin TEXT,
+              status_pernikahan TEXT DEFAULT '',
+              pekerjaan TEXT DEFAULT '',
+              provinsi TEXT DEFAULT 'Jawa Barat',
+              kab_kota TEXT DEFAULT 'Kab. Bandung',
+              kecamatan TEXT DEFAULT 'Banjaran',
+              kelurahan TEXT DEFAULT '',
+              alamat TEXT DEFAULT '',
+              no_tiket TEXT,
+              kategori TEXT DEFAULT 'Umum',
+              status_pendaftaran TEXT DEFAULT 'Sudah Terdaftar',
+              status_pelayanan TEXT DEFAULT 'Belum Pelayanan',
+              petugas_bot TEXT DEFAULT '',
+              raw_details TEXT,
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `).run();
+
+          let results = [];
+          try {
+            const q = await env.DB.prepare(`
+              SELECT c.*, 
+                     e.id AS enco_pasien_id, 
+                     e.status_pendaftaran AS enco_status_pendaftaran, 
+                     e.status_pelayanan AS enco_status_pelayanan,
+                     e.no_tiket AS enco_no_tiket
+              FROM ckg_gratis_records c
+              LEFT JOIN enco_pasien e ON TRIM(c.nik) = TRIM(e.nik)
+              ORDER BY c.rowid DESC
+            `).all();
+            results = q.results || [];
+          } catch (_) {
+            const q = await env.DB.prepare('SELECT * FROM ckg_gratis_records ORDER BY rowid DESC').all();
+            results = q.results || [];
+          }
+
+          const parsed = results.map(r => {
+            let item = {};
+            if (r.raw_json) {
+              try { item = JSON.parse(r.raw_json); } catch (_) { }
+            }
+
+            const isInBankData = (
+              r.enco_pasien_id != null ||
+              item.from_bank_data == 1 ||
+              item.is_bank_data == 1 ||
+              (item.status_pendaftaran && (item.status_pendaftaran === 'Sudah Terdaftar' || item.status_pendaftaran === 'berhasil')) ||
+              (item.status_pelayanan && (item.status_pelayanan === 'Selesai Pelayanan' || item.status_pelayanan === 'selesai' || item.status_pelayanan === 'Pernah Input')) ||
+              (r.enco_status_pendaftaran && (r.enco_status_pendaftaran === 'Sudah Terdaftar' || r.enco_status_pendaftaran === 'berhasil')) ||
+              (r.enco_status_pelayanan && (r.enco_status_pelayanan === 'Selesai Pelayanan' || r.enco_status_pelayanan === 'selesai' || r.enco_status_pelayanan === 'Pernah Input'))
+            ) ? 1 : 0;
+
+            return {
+              ...item,
+              id: item.id || (r.id ? (String(r.id).startsWith('CKG-G-') ? String(r.id) : `CKG-G-${r.id}`) : 'CKG-G-' + Date.now()),
+              nik: item.nik || r.nik || '',
+              nama: item.nama || item.nama_pasien || r.nama_pasien || '',
+              petugas_entry: item.petugas_entry || r.petugas_entry || 'Admin',
+              created_by: item.created_by || r.petugas_entry || 'Admin',
+              tanggal_entry: item.tanggal_entry || r.tanggal_entry || '',
+              created_at: item.created_at || r.tanggal_entry || '',
+              jenis_kegiatan: item.jenis_kegiatan || r.lokasi_pelayanan || 'Luar Gedung',
+              status_validasi: item.status_validasi || r.status_entry || 'Terverifikasi',
+              is_bank_data: isInBankData,
+              from_bank_data: item.from_bank_data ? 1 : (isInBankData ? 1 : 0),
+              enco_pasien_id: r.enco_pasien_id || null,
+              enco_status_pendaftaran: r.enco_status_pendaftaran || item.status_pendaftaran || '',
+              enco_status_pelayanan: r.enco_status_pelayanan || item.status_pelayanan || '',
+              status_pendaftaran: r.enco_status_pendaftaran || item.status_pendaftaran || '',
+              status_pelayanan: r.enco_status_pelayanan || item.status_pelayanan || ''
+            };
+          });
+          return new Response(JSON.stringify({ success: true, count: parsed.length, data: parsed }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const records = Array.isArray(body) ? body : [body];
+          const stmt = env.DB.prepare(`
+            INSERT INTO ckg_gratis_records (id, nik, nama_pasien, petugas_entry, tanggal_entry, lokasi_pelayanan, status_entry, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              nik = excluded.nik,
+              nama_pasien = excluded.nama_pasien,
+              petugas_entry = excluded.petugas_entry,
+              tanggal_entry = excluded.tanggal_entry,
+              lokasi_pelayanan = excluded.lokasi_pelayanan,
+              status_entry = excluded.status_entry,
+              raw_json = excluded.raw_json
+          `);
+          const statements = records.map(r => {
+            const recId = String(r.id || (r.nik ? `CKG-G-${r.nik}` : `CKG-G-${Date.now()}-${Math.floor(Math.random() * 10000)}`));
+            return stmt.bind(
+              recId,
+              r.nik || '',
+              r.nama || r.nama_pasien || '',
+              r.petugas_entry || r.created_by || 'Admin',
+              r.created_at || r.tanggal_entry || new Date().toISOString().substring(0, 10),
+              r.jenis_kegiatan || r.lokasi_pelayanan || 'Luar Gedung',
+              r.status_validasi || r.status_entry || 'Terverifikasi',
+              JSON.stringify(r)
+            );
+          });
+
+          const chunkSize = 20;
+          for (let i = 0; i < statements.length; i += chunkSize) {
+            const chunk = statements.slice(i, i + chunkSize);
+            await env.DB.batch(chunk);
+          }
+
+          return new Response(JSON.stringify({ success: true, count: records.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          let body = null;
+          try {
+            if (request.headers.get('content-type')?.includes('application/json')) {
+              body = await request.json();
+            }
+          } catch (_) { }
+
+          const id = url.searchParams.get('id') || body?.id;
+          const filter = url.searchParams.get('filter') || body?.filter;
+
+          if (id) {
+            await env.DB.prepare('DELETE FROM ckg_gratis_records WHERE id = ?').bind(id).run();
+            return new Response(JSON.stringify({ success: true, deleted: 'single' }), { headers: corsHeaders });
+          } else if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+            const batchSize = 50;
+            let totalDeleted = 0;
+            for (let i = 0; i < body.ids.length; i += batchSize) {
+              const chunk = body.ids.slice(i, i + batchSize);
+              const placeholders = chunk.map(() => '?').join(',');
+              await env.DB.prepare(`DELETE FROM ckg_gratis_records WHERE id IN (${placeholders})`).bind(...chunk).run();
+              totalDeleted += chunk.length;
+            }
+            return new Response(JSON.stringify({ success: true, deleted: 'batch', count: totalDeleted }), { headers: corsHeaders });
+          } else if (filter === 'non_16_digit') {
+            const delRes = await env.DB.prepare(`
+              DELETE FROM ckg_gratis_records 
+              WHERE (nik IS NOT NULL AND TRIM(nik) != '' AND LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(nik, ' ', ''), '-', ''), '.', ''), '\'', '')) != 16)
+            `).run();
+            return new Response(JSON.stringify({ success: true, deleted: 'non_16_digit', changes: delRes?.meta?.changes }), { headers: corsHeaders });
+          } else {
+            await env.DB.prepare('DELETE FROM ckg_gratis_records').run();
+            return new Response(JSON.stringify({ success: true, deleted: 'all' }), { headers: corsHeaders });
+          }
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 4. ROUTE: /api/sekolah (CKG Sekolah Database - Completely Standalone)
+    if (url.pathname === '/api/sekolah' || url.pathname.startsWith('/api/sekolah/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ckg_sekolah_records (
+            id TEXT PRIMARY KEY,
+            no INTEGER,
+            nama TEXT NOT NULL,
+            kelas TEXT,
+            sekolah TEXT,
+            jk TEXT DEFAULT 'L',
+            nik TEXT,
+            tanggal_lahir TEXT,
+            no_whatsapp TEXT,
+            provinsi TEXT DEFAULT 'Jawa Barat',
+            kab_kota TEXT DEFAULT 'Kab. Bandung',
+            kecamatan TEXT DEFAULT 'Banjaran',
+            kelurahan TEXT DEFAULT 'Tarajusari',
+            alamat TEXT,
+            bb REAL DEFAULT 0,
+            tb REAL DEFAULT 0,
+            lp REAL DEFAULT 0,
+            imt REAL DEFAULT 0,
+            status_imt TEXT DEFAULT 'Normal',
+            td_sistolik INTEGER DEFAULT 0,
+            td_diastolik INTEGER DEFAULT 0,
+            gula_darah TEXT DEFAULT '-',
+            hb TEXT DEFAULT '-',
+            telinga TEXT DEFAULT 'Tidak ada serumen',
+            gigi TEXT DEFAULT 'Tidak ada',
+            mata TEXT DEFAULT 'Normal',
+            kebugaran TEXT DEFAULT 'Baik',
+            menstruasi TEXT DEFAULT 'Belum',
+            kuku TEXT DEFAULT 'Pendek Bersih',
+            merokok TEXT DEFAULT 'Tidak',
+            jenis_rokok TEXT DEFAULT '-',
+            intensitas_merokok TEXT DEFAULT '-',
+            jumlah_batang TEXT DEFAULT '-',
+            status_kesehatan TEXT DEFAULT 'Sehat',
+            catatan_rujukan TEXT DEFAULT '-',
+            is_examined BOOLEAN DEFAULT 0,
+            petugas_entry TEXT DEFAULT 'Admin',
+            tanggal_entry TEXT,
+            tahun_skrining TEXT DEFAULT '2026',
+            antro_done INTEGER DEFAULT 0,
+            vital_done INTEGER DEFAULT 0,
+            lab_done INTEGER DEFAULT 0,
+            organ_done INTEGER DEFAULT 0,
+            kesimpulan_done INTEGER DEFAULT 0,
+            identitas_done INTEGER DEFAULT 0,
+            is_bank_data INTEGER DEFAULT 0,
+            from_bank_data INTEGER DEFAULT 0,
+            raw_json TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+      } catch (_) { }
+
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN antro_done INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN vital_done INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN lab_done INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN organ_done INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN kesimpulan_done INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN identitas_done INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN is_bank_data INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare('ALTER TABLE ckg_sekolah_records ADD COLUMN from_bank_data INTEGER DEFAULT 0').run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN kuku TEXT DEFAULT 'Pendek Bersih'").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN merokok TEXT DEFAULT 'Tidak'").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN jenis_rokok TEXT DEFAULT '-'").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN intensitas_merokok TEXT DEFAULT '-'").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN jumlah_batang TEXT DEFAULT '-'").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN tahun_skrining TEXT DEFAULT '2026'").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE ckg_sekolah_records ADD COLUMN ttd_logs TEXT DEFAULT '[]'").run(); } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          const idFilter = url.searchParams.get('id');
+          const sekolahFilter = url.searchParams.get('sekolah');
+          const kelasFilter = url.searchParams.get('kelas');
+
+          let query = 'SELECT * FROM ckg_sekolah_records';
+          const params = [];
+          const conditions = [];
+
+          if (idFilter) {
+            conditions.push('id = ?');
+            params.push(idFilter);
+          }
+          if (sekolahFilter) {
+            conditions.push('UPPER(sekolah) = ?');
+            params.push(sekolahFilter.toUpperCase());
+          }
+          if (kelasFilter) {
+            conditions.push('UPPER(kelas) = ?');
+            params.push(kelasFilter.toUpperCase());
+          }
+
+          if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+          }
+          query += ' ORDER BY no ASC, rowid DESC';
+
+          let stmt = env.DB.prepare(query);
+          if (params.length > 0) {
+            stmt = stmt.bind(...params);
+          }
+
+          const { results } = await stmt.all();
+          const parsed = (results || []).map(r => {
+            let json = {};
+            try { json = JSON.parse(r.raw_json || '{}'); } catch (_) { }
+            return { ...json, ...r };
+          });
+          return new Response(JSON.stringify({ success: true, count: parsed.length, data: parsed }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'PATCH' || request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const isPartial = request.method === 'PATCH' || (body && (body.action === 'partial_update' || body.is_partial || (body.id && body.fields)));
+
+          if (isPartial) {
+            const targetId = body.id;
+            if (!targetId) {
+              return new Response(JSON.stringify({ success: false, error: 'Missing student id for partial update' }), { status: 400, headers: corsHeaders });
+            }
+
+            const allowedCols = [
+              'nama', 'kelas', 'sekolah', 'jk', 'nik', 'tanggal_lahir', 'no_whatsapp',
+              'provinsi', 'kab_kota', 'kecamatan', 'kelurahan', 'alamat',
+              'bb', 'tb', 'lp', 'imt', 'status_imt',
+              'td_sistolik', 'td_diastolik', 'gula_darah', 'hb',
+              'telinga', 'gigi', 'mata', 'kebugaran', 'menstruasi', 'kuku',
+              'merokok', 'jenis_rokok', 'intensitas_merokok', 'jumlah_batang',
+              'status_kesehatan', 'catatan_rujukan',
+              'is_examined', 'petugas_entry', 'tanggal_entry', 'tahun_skrining',
+              'antro_done', 'vital_done', 'lab_done', 'organ_done', 'kesimpulan_done', 'identitas_done',
+              'is_bank_data', 'from_bank_data',
+              'ttd_logs'
+            ];
+
+            const updateData = body.fields || body;
+            const setClauses = [];
+            const setParams = [];
+
+            for (const col of allowedCols) {
+              if (updateData[col] !== undefined) {
+                setClauses.push(`${col} = ?`);
+                let val = updateData[col];
+                if (typeof val === 'boolean') val = val ? 1 : 0;
+                setParams.push(val);
+              }
+            }
+
+            if (setClauses.length === 0) {
+              return new Response(JSON.stringify({ success: true, message: 'No fields to update' }), { headers: corsHeaders });
+            }
+
+            let currentJson = {};
+            try {
+              const existing = await env.DB.prepare('SELECT raw_json FROM ckg_sekolah_records WHERE id = ?').bind(targetId).first();
+              if (existing && existing.raw_json) {
+                currentJson = JSON.parse(existing.raw_json || '{}');
+              }
+            } catch (_) { }
+
+            const mergedJson = { ...currentJson, ...updateData };
+            delete mergedJson.id;
+            setClauses.push('raw_json = ?');
+            setParams.push(JSON.stringify(mergedJson));
+
+            setParams.push(targetId);
+            const updateSql = `UPDATE ckg_sekolah_records SET ${setClauses.join(', ')} WHERE id = ?`;
+            await env.DB.prepare(updateSql).bind(...setParams).run();
+
+            const updatedRecord = await env.DB.prepare('SELECT * FROM ckg_sekolah_records WHERE id = ?').bind(targetId).first();
+            let finalJson = {};
+            try { finalJson = JSON.parse(updatedRecord.raw_json || '{}'); } catch (_) { }
+            const result = { ...finalJson, ...updatedRecord };
+
+            return new Response(JSON.stringify({ success: true, message: 'Updated successfully', data: result }), { headers: corsHeaders });
+          }
+
+          // Full Batch INSERT/REPLACE for import or full record creation
+          const items = Array.isArray(body) ? body : [body];
+          if (items.length === 0) {
+            return new Response(JSON.stringify({ success: true, count: 0 }), { headers: corsHeaders });
+          }
+
+          const stmt = env.DB.prepare(`
+            INSERT INTO ckg_sekolah_records (
+              id, no, nama, kelas, sekolah, jk, nik, tanggal_lahir, no_whatsapp,
+              provinsi, kab_kota, kecamatan, kelurahan, alamat,
+              bb, tb, lp, imt, status_imt,
+              td_sistolik, td_diastolik, gula_darah, hb,
+              telinga, gigi, mata, kebugaran, menstruasi, status_kesehatan, catatan_rujukan,
+              is_examined, petugas_entry, tanggal_entry,
+              antro_done, vital_done, lab_done, organ_done, kesimpulan_done, identitas_done,
+              raw_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              no = excluded.no,
+              nama = excluded.nama,
+              kelas = excluded.kelas,
+              sekolah = excluded.sekolah,
+              jk = excluded.jk,
+              nik = excluded.nik,
+              tanggal_lahir = excluded.tanggal_lahir,
+              no_whatsapp = excluded.no_whatsapp,
+              provinsi = excluded.provinsi,
+              kab_kota = excluded.kab_kota,
+              kecamatan = excluded.kecamatan,
+              kelurahan = excluded.kelurahan,
+              alamat = excluded.alamat,
+              bb = excluded.bb,
+              tb = excluded.tb,
+              lp = excluded.lp,
+              imt = excluded.imt,
+              status_imt = excluded.status_imt,
+              td_sistolik = excluded.td_sistolik,
+              td_diastolik = excluded.td_diastolik,
+              gula_darah = excluded.gula_darah,
+              hb = excluded.hb,
+              telinga = excluded.telinga,
+              gigi = excluded.gigi,
+              mata = excluded.mata,
+              kebugaran = excluded.kebugaran,
+              menstruasi = excluded.menstruasi,
+              status_kesehatan = excluded.status_kesehatan,
+              catatan_rujukan = excluded.catatan_rujukan,
+              is_examined = excluded.is_examined,
+              petugas_entry = excluded.petugas_entry,
+              tanggal_entry = excluded.tanggal_entry,
+              antro_done = excluded.antro_done,
+              vital_done = excluded.vital_done,
+              lab_done = excluded.lab_done,
+              organ_done = excluded.organ_done,
+              kesimpulan_done = excluded.kesimpulan_done,
+              identitas_done = excluded.identitas_done,
+              raw_json = excluded.raw_json
+          `);
+
+          const statements = items.map((item, idx) => {
+            const bb = Number(item.bb || 0);
+            const tb = Number(item.tb || 0);
+            let imt = Number(item.imt || 0);
+            if (bb > 0 && tb > 0 && imt === 0) {
+              const tbM = tb / 100;
+              imt = Number((bb / (tbM * tbM)).toFixed(2));
+            }
+
+            const antroDone = (item.antro_done || (bb > 0 && tb > 0)) ? 1 : 0;
+            const vitalDone = (item.vital_done || Number(item.td_sistolik || 0) > 0) ? 1 : 0;
+            const labDone = (item.lab_done || (item.hb && item.hb !== '-') || (item.gula_darah && item.gula_darah !== '-')) ? 1 : 0;
+            const organDone = item.organ_done ? 1 : 0;
+            const kesimpulanDone = item.kesimpulan_done ? 1 : 0;
+            const identitasDone = (item.identitas_done || item.nama) ? 1 : 0;
+            // PENTING: Identitas BUKAN pemeriksaan!
+            const isExamined = (antroDone || vitalDone || labDone || organDone || kesimpulanDone) ? 1 : 0;
+
+            return stmt.bind(
+              String(item.id || item.nik || `SCH-${Date.now()}-${idx}`),
+              Number(item.no || idx + 1),
+              String(item.nama || item.nama_siswa || '').trim().toUpperCase(),
+              String(item.kelas || '').trim().toUpperCase(),
+              String(item.sekolah || item.nama_sekolah || '').trim().toUpperCase(),
+              String(item.jk || item.jenis_kelamin || 'L'),
+              String(item.nik || item.nisn_nik || '').trim(),
+              String(item.tanggal_lahir || ''),
+              String(item.no_whatsapp || ''),
+              String(item.provinsi || 'Jawa Barat'),
+              String(item.kab_kota || 'Kab. Bandung'),
+              String(item.kecamatan || 'Banjaran'),
+              String(item.kelurahan || 'Tarajusari'),
+              String(item.alamat || ''),
+              bb,
+              tb,
+              Number(item.lp || 0),
+              imt,
+              String(item.status_imt || 'Normal'),
+              Number(item.td_sistolik || 0),
+              Number(item.td_diastolik || 0),
+              String(item.gula_darah || '-'),
+              String(item.hb || '-'),
+              String(item.telinga || '-'),
+              String(item.gigi || '-'),
+              String(item.mata || '-'),
+              String(item.kebugaran || '-'),
+              String(item.menstruasi || '-'),
+              String(item.status_kesehatan || 'Sehat'),
+              String(item.catatan_rujukan || '-'),
+              isExamined,
+              String(item.petugas_entry || 'Admin'),
+              String(item.tanggal_entry || new Date().toISOString().substring(0, 10)),
+              antroDone,
+              vitalDone,
+              labDone,
+              organDone,
+              kesimpulanDone,
+              identitasDone,
+              JSON.stringify(item)
+            );
+          });
+
+          const chunkSize = 25;
+          for (let i = 0; i < statements.length; i += chunkSize) {
+            const chunk = statements.slice(i, i + chunkSize);
+            await env.DB.batch(chunk);
+          }
+
+          return new Response(JSON.stringify({ success: true, count: items.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          let body = null;
+          try {
+            if (request.headers.get('content-type')?.includes('application/json')) {
+              body = await request.json();
+            }
+          } catch (_) { }
+
+          const id = url.searchParams.get('id') || body?.id;
+          if (id) {
+            await env.DB.prepare('DELETE FROM ckg_sekolah_records WHERE id = ?').bind(id).run();
+            return new Response(JSON.stringify({ success: true, count: 1 }), { headers: corsHeaders });
+          }
+
+          if (body && Array.isArray(body.ids) && body.ids.length > 0) {
+            const batchSize = 50;
+            let totalDeleted = 0;
+            for (let i = 0; i < body.ids.length; i += batchSize) {
+              const chunk = body.ids.slice(i, i + batchSize);
+              const placeholders = chunk.map(() => '?').join(',');
+              const stmt = env.DB.prepare(`DELETE FROM ckg_sekolah_records WHERE id IN (${placeholders})`).bind(...chunk);
+              const res = await stmt.run();
+              totalDeleted += (res?.meta?.changes ?? chunk.length);
+            }
+            return new Response(JSON.stringify({ success: true, count: totalDeleted }), { headers: corsHeaders });
+          }
+
+          const sekolah = url.searchParams.get('sekolah') || body?.sekolah;
+          const kelas = url.searchParams.get('kelas') || body?.kelas;
+          const tahun = url.searchParams.get('tahun') || body?.tahun;
+          const status = url.searchParams.get('status') || body?.status;
+          const filter = url.searchParams.get('filter') || body?.filter;
+
+          let query = 'DELETE FROM ckg_sekolah_records';
+          const conditions = [];
+          const params = [];
+
+          if (filter === 'non_16_digit') {
+            conditions.push(`(nik IS NULL OR TRIM(nik) = '' OR LENGTH(REPLACE(REPLACE(REPLACE(REPLACE(nik, ' ', ''), '-', ''), '.', ''), '\'', '')) != 16)`);
+          }
+
+          if (sekolah && sekolah !== 'all' && sekolah !== 'ALL') {
+            conditions.push('UPPER(TRIM(sekolah)) = UPPER(TRIM(?))');
+            params.push(sekolah);
+          }
+          if (kelas && kelas !== 'all' && kelas !== 'ALL') {
+            conditions.push('UPPER(TRIM(kelas)) = UPPER(TRIM(?))');
+            params.push(kelas);
+          }
+          if (tahun && tahun !== 'all' && tahun !== 'ALL') {
+            conditions.push('(tahun_skrining = ? OR (tahun_skrining IS NULL AND substr(tanggal_entry, 1, 4) = ?))');
+            params.push(tahun, tahun);
+          }
+          if (status && status !== 'all' && status !== 'ALL') {
+            if (status === 'sudah') {
+              conditions.push('is_examined = 1');
+            } else if (status === 'belum') {
+              conditions.push('(is_examined = 0 AND antro_done = 0 AND vital_done = 0 AND lab_done = 0 AND organ_done = 0 AND kesimpulan_done = 0)');
+            } else if (status === 'sebagian') {
+              conditions.push('(is_examined = 0 AND (antro_done = 1 OR vital_done = 1 OR lab_done = 1 OR organ_done = 1 OR kesimpulan_done = 1))');
+            }
+          }
+
+          if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+          }
+
+          let stmt = env.DB.prepare(query);
+          if (params.length > 0) {
+            stmt = stmt.bind(...params);
+          }
+          const res = await stmt.run();
+          return new Response(JSON.stringify({ success: true, count: res?.meta?.changes ?? 0 }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 4.1 ROUTE: /api/master-sekolah (Pengelolaan Master Data Sekolah: Tambah, Edit, Hapus, Password & Akses)
+    if (url.pathname === '/api/master-sekolah' || url.pathname.startsWith('/api/master-sekolah/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS master_sekolah (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT NOT NULL UNIQUE,
+            level TEXT NOT NULL,
+            password TEXT DEFAULT '',
+            allowed_menus TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+      } catch (_) { }
+
+      try { await env.DB.prepare("ALTER TABLE master_sekolah ADD COLUMN password TEXT DEFAULT ''").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE master_sekolah ADD COLUMN allowed_menus TEXT DEFAULT ''").run(); } catch (_) { }
+      try { await env.DB.prepare("ALTER TABLE master_sekolah ADD COLUMN is_active INTEGER DEFAULT 0").run(); } catch (_) { }
+
+      // GET: Ambil daftar seluruh sekolah master
+      if (request.method === 'GET') {
+        try {
+          let { results } = await env.DB.prepare('SELECT id, nama, level, password, allowed_menus, is_active, created_at FROM master_sekolah ORDER BY level ASC, nama ASC').all();
+
+          // Auto-seed default 35 schools jika tabel masih kosong
+          if (!results || results.length === 0) {
+            const defaultSchools = [
+              { nama: 'MI CHOIRUL HUDA', level: 'SD' },
+              { nama: 'MI PERSIS 119 CIHAMERANG', level: 'SD' },
+              { nama: 'MIS DARUSSALAM', level: 'SD' },
+              { nama: 'MIS M. THREE', level: 'SD' },
+              { nama: 'MIS MIFTAHUS SAADAH', level: 'SD' },
+              { nama: 'MIS PERSIS 278 PANGKALAN', level: 'SD' },
+              { nama: 'SDIT ZAKIA', level: 'SD' },
+              { nama: 'SDN ARIASACANAGARA', level: 'SD' },
+              { nama: 'SDN BANJARAN 01', level: 'SD' },
+              { nama: 'SDN BANJARAN 02', level: 'SD' },
+              { nama: 'SDN CIHAMERANG', level: 'SD' },
+              { nama: 'SDN CIPEUNDEUY', level: 'SD' },
+              { nama: 'SDN KIARAPAYUNG 01', level: 'SD' },
+              { nama: 'SDN KIARAPAYUNG 02', level: 'SD' },
+              { nama: 'SDN MEKARJAYA', level: 'SD' },
+              { nama: 'SDN PANGAUBAN', level: 'SD' },
+              { nama: 'SDN PASIRWARU', level: 'SD' },
+              { nama: 'SDN PONDOKSIRAP', level: 'SD' },
+              { nama: 'SDN SIRAH RANCA 01', level: 'SD' },
+              { nama: 'SDN SIRAH RANCA 02', level: 'SD' },
+              { nama: 'SDN TARAJUSARI', level: 'SD' },
+              { nama: 'MTS DARUL HIKMAH AL - USMANI', level: 'SMP' },
+              { nama: 'MTS PERSIS 282 CILEUTIK', level: 'SMP' },
+              { nama: 'MTSS PERSIS BANJARAN', level: 'SMP' },
+              { nama: 'MTSS MIFTAHUL HUDA KIARAPAYUNG', level: 'SMP' },
+              { nama: 'MIFTAHUL HUDA KIARAPAYUNG', level: 'SMP' },
+              { nama: 'SMP PASUNDAN 1 BANJARAN', level: 'SMP' },
+              { nama: 'SMP PGRI BANJARAN', level: 'SMP' },
+              { nama: 'SMP PGRI CIBARIBIS BANJARAN', level: 'SMP' },
+              { nama: 'SMP TERPADU AL FALAH', level: 'SMP' },
+              { nama: 'SMPN 1 BANJARAN', level: 'SMP' },
+              { nama: 'SMPN 3 BANJARAN', level: 'SMP' },
+              { nama: 'MAS PERSIS 31 BANJARAN', level: 'SMA' },
+              { nama: 'SMA PASUNDAN BANJARAN', level: 'SMA' },
+              { nama: 'SMAN 1 BANJARAN', level: 'SMA' },
+              { nama: 'SMK KHARISMA NUSANTARA', level: 'SMA' },
+              { nama: 'SMK PASUNDAN 1 BANJARAN', level: 'SMA' },
+              { nama: 'SMK PASUNDAN 2 BANJARAN', level: 'SMA' },
+              { nama: 'SMK PGRI CIBARIBIS', level: 'SMA' },
+              { nama: 'SMK PLUS PRATAMA ADI', level: 'SMA' }
+            ];
+            const insertStmt = env.DB.prepare('INSERT OR IGNORE INTO master_sekolah (nama, level) VALUES (?, ?)');
+            const stmts = defaultSchools.map(s => insertStmt.bind(s.nama, s.level));
+            await env.DB.batch(stmts);
+            const refetched = await env.DB.prepare('SELECT id, nama, level, password, allowed_menus, is_active, created_at FROM master_sekolah ORDER BY level ASC, nama ASC').all();
+            results = refetched.results || [];
+          }
+
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // POST: Tambah sekolah baru (atau batch seed)
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const items = Array.isArray(body) ? body : [body];
+          const stmt = env.DB.prepare(`
+            INSERT INTO master_sekolah (nama, level, password, allowed_menus, is_active) VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(nama) DO UPDATE SET 
+              level = excluded.level,
+              password = CASE WHEN excluded.password != '' THEN excluded.password ELSE master_sekolah.password END,
+              allowed_menus = excluded.allowed_menus,
+              is_active = excluded.is_active
+          `);
+          const statements = items.map(item => stmt.bind(
+            (item.nama || '').trim().toUpperCase(),
+            (item.level || 'SD').trim().toUpperCase(),
+            (item.password || '').trim(),
+            (item.allowed_menus || '').trim(),
+            item.is_active ? 1 : 0
+          ));
+          await env.DB.batch(statements);
+          return new Response(JSON.stringify({ success: true, count: items.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // PUT: Edit sekolah (Nama/Level, atau Password, Hak Akses, Status Aktif)
+      if (request.method === 'PUT' || request.method === 'PATCH') {
+        try {
+          const body = await request.json();
+          const targetNama = (body.oldNama || body.nama || '').trim().toUpperCase();
+          if (!targetNama) {
+            return new Response(JSON.stringify({ success: false, error: 'Nama sekolah required' }), { status: 400, headers: corsHeaders });
+          }
+
+          // If updating permissions / password specifically:
+          if (body.password !== undefined || body.allowed_menus !== undefined || body.is_active !== undefined) {
+            const updates = [];
+            const params = [];
+            if (body.password !== undefined) {
+              updates.push('password = ?');
+              params.push(String(body.password).trim());
+            }
+            if (body.allowed_menus !== undefined) {
+              updates.push('allowed_menus = ?');
+              params.push(typeof body.allowed_menus === 'string' ? body.allowed_menus : JSON.stringify(body.allowed_menus));
+            }
+            if (body.is_active !== undefined) {
+              updates.push('is_active = ?');
+              params.push(body.is_active ? 1 : 0);
+            }
+            params.push(targetNama);
+
+            await env.DB.prepare(`UPDATE master_sekolah SET ${updates.join(', ')} WHERE UPPER(nama) = ?`).bind(...params).run();
+            return new Response(JSON.stringify({ success: true, message: 'Akses sekolah berhasil diperbarui' }), { headers: corsHeaders });
+          }
+
+          // Otherwise, name / level rename flow
+          const cleanOld = targetNama;
+          const cleanNew = (body.newNama || body.nama || '').trim().toUpperCase();
+          const cleanLevel = (body.level || 'SD').trim().toUpperCase();
+
+          await env.DB.prepare(`
+            UPDATE master_sekolah 
+            SET nama = ?, level = ? 
+            WHERE UPPER(nama) = ?
+          `).bind(cleanNew, cleanLevel, cleanOld).run();
+
+          let updatedStudents = 0;
+          if (cleanOld !== cleanNew) {
+            const updateRes = await env.DB.prepare(`
+              UPDATE ckg_sekolah_records 
+              SET sekolah = ? 
+              WHERE UPPER(sekolah) = ?
+            `).bind(cleanNew, cleanOld).run();
+            updatedStudents = updateRes.meta?.changes || 0;
+          }
+
+          return new Response(JSON.stringify({ success: true, updatedStudents }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // DELETE: Hapus sekolah dari master data
+      if (request.method === 'DELETE') {
+        try {
+          const nama = url.searchParams.get('nama');
+          if (!nama) {
+            return new Response(JSON.stringify({ success: false, error: 'nama parameter required' }), { status: 400, headers: corsHeaders });
+          }
+          await env.DB.prepare('DELETE FROM master_sekolah WHERE UPPER(nama) = ?').bind(nama.trim().toUpperCase()).run();
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+
+    // 4.2 ROUTE: /api/master-posyandu (Pengelolaan Master Data Posyandu: Tambah, Edit, Hapus, Password & Akses)
+    if (url.pathname === '/api/master-posyandu' || url.pathname.startsWith('/api/master-posyandu/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS master_posyandu (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT NOT NULL UNIQUE,
+            desa TEXT NOT NULL,
+            rw TEXT DEFAULT '',
+            password TEXT DEFAULT '',
+            allowed_menus TEXT DEFAULT '',
+            is_active INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+      } catch (_) { }
+
+      // GET: Ambil daftar seluruh posyandu
+      if (request.method === 'GET') {
+        try {
+          let { results } = await env.DB.prepare('SELECT id, nama, desa, rw, password, allowed_menus, is_active, created_at FROM master_posyandu ORDER BY desa ASC, nama ASC').all();
+
+          // Auto-seed default Posyandu untuk wilayah Banjaran jika masih kosong
+          if (!results || results.length === 0) {
+            const defaultPosyandu = [
+              { nama: 'Posyandu Mawar 1 (Tarajusari)', desa: 'Tarajusari', rw: 'RW 01' },
+              { nama: 'Posyandu Mawar 2 (Tarajusari)', desa: 'Tarajusari', rw: 'RW 02' },
+              { nama: 'Posyandu Melati 1 (Banjaran Kulon)', desa: 'Banjaran Kulon', rw: 'RW 01' },
+              { nama: 'Posyandu Melati 2 (Banjaran Kulon)', desa: 'Banjaran Kulon', rw: 'RW 02' },
+              { nama: 'Posyandu Cempaka 1 (Banjaran Wetan)', desa: 'Banjaran Wetan', rw: 'RW 01' },
+              { nama: 'Posyandu Cempaka 2 (Banjaran Wetan)', desa: 'Banjaran Wetan', rw: 'RW 02' },
+              { nama: 'Posyandu Teratai 1 (Kiangroke)', desa: 'Kiangroke', rw: 'RW 01' },
+              { nama: 'Posyandu Anggrek 1 (Kamasan)', desa: 'Kamasan', rw: 'RW 01' },
+              { nama: 'Posyandu Dahlia 1 (Ciapus)', desa: 'Ciapus', rw: 'RW 01' },
+              { nama: 'Posyandu Kenanga 1 (Margahayu)', desa: 'Margahayu', rw: 'RW 01' },
+              { nama: 'Posyandu Flamboyan 1 (Neglasari)', desa: 'Neglasari', rw: 'RW 01' },
+              { nama: 'Posyandu Kamboja 1 (Pasirhuni)', desa: 'Pasirhuni', rw: 'RW 01' },
+              { nama: 'Posyandu Nusa Indah 1 (Sindangpanon)', desa: 'Sindangpanon', rw: 'RW 01' }
+            ];
+            const insertStmt = env.DB.prepare('INSERT OR IGNORE INTO master_posyandu (nama, desa, rw) VALUES (?, ?, ?)');
+            const stmts = defaultPosyandu.map(p => insertStmt.bind(p.nama, p.desa, p.rw));
+            await env.DB.batch(stmts);
+            const refetched = await env.DB.prepare('SELECT id, nama, desa, rw, password, allowed_menus, is_active, created_at FROM master_posyandu ORDER BY desa ASC, nama ASC').all();
+            results = refetched.results || [];
+          }
+
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // POST: Tambah posyandu baru
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const nama = (body.nama || '').trim();
+          const desa = (body.desa || 'Tarajusari').trim();
+          const rw = (body.rw || '').trim();
+          const password = (body.password || '').trim();
+          const allowed_menus = typeof body.allowed_menus === 'string' ? body.allowed_menus : JSON.stringify(body.allowed_menus || []);
+          const is_active = body.is_active ? 1 : 0;
+
+          if (!nama) {
+            return new Response(JSON.stringify({ success: false, error: 'Nama Posyandu required' }), { status: 400, headers: corsHeaders });
+          }
+
+          await env.DB.prepare(`
+            INSERT INTO master_posyandu (nama, desa, rw, password, allowed_menus, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(nama) DO UPDATE SET
+              desa = excluded.desa,
+              rw = excluded.rw,
+              password = excluded.password,
+              allowed_menus = excluded.allowed_menus,
+              is_active = excluded.is_active
+          `).bind(nama, desa, rw, password, allowed_menus, is_active).run();
+
+          return new Response(JSON.stringify({ success: true, message: 'Posyandu berhasil disimpan' }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // PUT / PATCH: Update posyandu (password, allowed_menus, is_active, nama, desa)
+      if (request.method === 'PUT' || request.method === 'PATCH') {
+        try {
+          const body = await request.json();
+          const id = body.id;
+          const nama = (body.nama || '').trim();
+
+          if (!id && !nama) {
+            return new Response(JSON.stringify({ success: false, error: 'id or nama required' }), { status: 400, headers: corsHeaders });
+          }
+
+          const updates = [];
+          const params = [];
+
+          if (body.newNama !== undefined && body.newNama.trim()) { updates.push('nama = ?'); params.push(body.newNama.trim()); }
+          if (body.desa !== undefined) { updates.push('desa = ?'); params.push(body.desa.trim()); }
+          if (body.rw !== undefined) { updates.push('rw = ?'); params.push(body.rw.trim()); }
+          if (body.password !== undefined) { updates.push('password = ?'); params.push(String(body.password).trim()); }
+          if (body.allowed_menus !== undefined) {
+            updates.push('allowed_menus = ?');
+            params.push(typeof body.allowed_menus === 'string' ? body.allowed_menus : JSON.stringify(body.allowed_menus));
+          }
+          if (body.is_active !== undefined) { updates.push('is_active = ?'); params.push(body.is_active ? 1 : 0); }
+
+          if (updates.length === 0) {
+            return new Response(JSON.stringify({ success: false, error: 'No fields to update' }), { status: 400, headers: corsHeaders });
+          }
+
+          if (id) {
+            params.push(id);
+            await env.DB.prepare(`UPDATE master_posyandu SET ${updates.join(', ')} WHERE id = ?`).bind(...params).run();
+          } else {
+            params.push(nama);
+            await env.DB.prepare(`UPDATE master_posyandu SET ${updates.join(', ')} WHERE UPPER(nama) = UPPER(?)`).bind(...params).run();
+          }
+
+          return new Response(JSON.stringify({ success: true, message: 'Data posyandu berhasil diperbarui' }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // DELETE: Hapus posyandu
+      if (request.method === 'DELETE') {
+        try {
+          const id = url.searchParams.get('id');
+          const nama = url.searchParams.get('nama');
+          if (!id && !nama) {
+            return new Response(JSON.stringify({ success: false, error: 'id or nama required' }), { status: 400, headers: corsHeaders });
+          }
+          if (id) {
+            await env.DB.prepare('DELETE FROM master_posyandu WHERE id = ?').bind(id).run();
+          } else {
+            await env.DB.prepare('DELETE FROM master_posyandu WHERE UPPER(nama) = UPPER(?)').bind(nama.trim()).run();
+          }
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+
+    // 4. ROUTE: /api/recycle
+    if (url.pathname === '/api/recycle' || url.pathname.startsWith('/api/recycle/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      if (request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare('SELECT * FROM recycle_bin ORDER BY created_at DESC').all();
+          const parsed = (results || []).map(r => {
+            let json = {};
+            try { json = JSON.parse(r.raw_json || '{}'); } catch (_) { }
+            return {
+              ...json,
+              id: r.id,
+              nik: r.nik,
+              nama: r.nama,
+              jenis_kegiatan: r.jenis_kegiatan,
+              deleted_at: r.deleted_at,
+              deleted_by: r.deleted_by,
+              original_source: r.original_source
+            };
+          });
+          return new Response(JSON.stringify({ success: true, count: parsed.length, data: parsed }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const items = Array.isArray(body) ? body : [body];
+          const stmt = env.DB.prepare(`
+            INSERT INTO recycle_bin (id, nik, nama, jenis_kegiatan, deleted_at, deleted_by, original_source, raw_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              deleted_at = excluded.deleted_at,
+              deleted_by = excluded.deleted_by,
+              raw_json = excluded.raw_json
+          `);
+          const statements = items.map(item => stmt.bind(
+            String(item.id || item.nik || Date.now()),
+            item.nik || '',
+            item.nama || item.nama_pasien || '',
+            item.jenis_kegiatan || '',
+            item.deleted_at || new Date().toISOString(),
+            item.deleted_by || 'Admin',
+            item.original_source || 'BNBA CKG',
+            JSON.stringify(item)
+          ));
+          await env.DB.batch(statements);
+          return new Response(JSON.stringify({ success: true, count: items.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          const id = url.searchParams.get('id');
+          const source = url.searchParams.get('source');
+
+          let reqBody = null;
+          try { reqBody = await request.json(); } catch (_) { }
+
+          if (id) {
+            await env.DB.prepare('DELETE FROM recycle_bin WHERE id = ?').bind(id).run();
+          } else if (source) {
+            const srcUpper = source.toUpperCase();
+            if (srcUpper === 'SIMPUS') {
+              await env.DB.prepare("DELETE FROM recycle_bin WHERE UPPER(original_source) LIKE '%SIMPUS%'").run();
+            } else if (srcUpper === 'BNBA') {
+              await env.DB.prepare("DELETE FROM recycle_bin WHERE UPPER(original_source) NOT LIKE '%SIMPUS%' OR original_source IS NULL").run();
+            } else {
+              await env.DB.prepare('DELETE FROM recycle_bin').run();
+            }
+          } else if (reqBody && Array.isArray(reqBody.ids) && reqBody.ids.length > 0) {
+            const stmts = reqBody.ids.map(itemId => env.DB.prepare('DELETE FROM recycle_bin WHERE id = ?').bind(String(itemId)));
+            const chunkSize = 20;
+            for (let i = 0; i < stmts.length; i += chunkSize) {
+              const chunk = stmts.slice(i, i + chunkSize);
+              await env.DB.batch(chunk);
+            }
+          } else {
+            await env.DB.prepare('DELETE FROM recycle_bin').run();
+          }
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+
+    // 5. ROUTE: /api/announcement
+    if (url.pathname === '/api/announcement' || url.pathname.startsWith('/api/announcement/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      if (request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare('SELECT * FROM announcement WHERE id = 1 LIMIT 1').all();
+          const ann = results && results.length > 0 ? results[0] : null;
+          if (ann) {
+            ann.active = Boolean(ann.active);
+          }
+          return new Response(JSON.stringify({ success: true, data: ann }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          await env.DB.prepare(`
+            INSERT INTO announcement (id, title, content, author, date, active)
+            VALUES (1, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              title = excluded.title,
+              content = excluded.content,
+              author = excluded.author,
+              date = excluded.date,
+              active = excluded.active
+          `).bind(
+            body.title || 'PENGUMUMAN SISTEM CKG',
+            body.content || '',
+            body.author || 'Admin',
+            body.date || new Date().toISOString().substring(0, 10),
+            body.active ? 1 : 0
+          ).run();
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+
+    // 6. ROUTE: /api/sessions (Live User Session & Heartbeat Tracker)
+    if (url.pathname === '/api/sessions' || url.pathname.startsWith('/api/sessions/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS user_sessions (
+            nama_user TEXT PRIMARY KEY,
+            last_seen INTEGER NOT NULL,
+            status TEXT DEFAULT 'active'
+          )
+        `).run();
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare('SELECT nama_user, last_seen, status FROM user_sessions').all();
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const nama_user = body.nama_user || body.nama;
+          const status = body.status || 'active';
+          const now = Date.now();
+
+          if (!nama_user) {
+            return new Response(JSON.stringify({ success: false, error: 'nama_user required' }), { status: 400, headers: corsHeaders });
+          }
+
+          await env.DB.prepare(`
+            INSERT INTO user_sessions (nama_user, last_seen, status)
+            VALUES (?, ?, ?)
+            ON CONFLICT(nama_user) DO UPDATE SET
+              last_seen = excluded.last_seen,
+              status = excluded.status
+          `).bind(nama_user, now, status).run();
+
+          return new Response(JSON.stringify({ success: true, timestamp: now }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 7. ROUTE: /api/maintenance (Maintenance Mode Settings)
+    if (url.pathname === '/api/maintenance' || url.pathname.startsWith('/api/maintenance/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS maintenance_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT
+          )
+        `).run();
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare('SELECT key, value FROM maintenance_settings').all();
+          const settings = {};
+          (results || []).forEach(r => { settings[r.key] = r.value; });
+          return new Response(JSON.stringify({
+            success: true,
+            maintenance_web: settings['maintenance_web'] === 'true',
+            maintenance_web_message: settings['maintenance_web_message'] || 'Sistem sedang dalam maintenance. Silakan coba beberapa saat lagi.',
+            locked_menus: settings['locked_menus'] ? JSON.parse(settings['locked_menus']) : [],
+            maintenance_menu_message: settings['maintenance_menu_message'] || 'Menu ini sedang dalam maintenance oleh Admin.',
+            gate_password_puskesmas: settings['gate_password_puskesmas'] || '213'
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const now = new Date().toISOString();
+          const upsert = env.DB.prepare(`
+            INSERT INTO maintenance_settings (key, value, updated_at) VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+          `);
+          const statements = [];
+
+          if (body.maintenance_web !== undefined) {
+            statements.push(upsert.bind('maintenance_web', String(body.maintenance_web), now));
+          }
+          if (body.maintenance_web_message !== undefined) {
+            statements.push(env.DB.prepare(`
+              INSERT INTO maintenance_settings (key, value, updated_at) VALUES (?, ?, ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+            `).bind('maintenance_web_message', String(body.maintenance_web_message), now));
+          }
+          if (body.locked_menus !== undefined) {
+            statements.push(env.DB.prepare(`
+              INSERT INTO maintenance_settings (key, value, updated_at) VALUES (?, ?, ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+            `).bind('locked_menus', JSON.stringify(body.locked_menus), now));
+          }
+          if (body.maintenance_menu_message !== undefined) {
+            statements.push(env.DB.prepare(`
+              INSERT INTO maintenance_settings (key, value, updated_at) VALUES (?, ?, ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+            `).bind('maintenance_menu_message', String(body.maintenance_menu_message), now));
+          }
+          if (body.gate_password_puskesmas !== undefined) {
+            statements.push(env.DB.prepare(`
+              INSERT INTO maintenance_settings (key, value, updated_at) VALUES (?, ?, ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+            `).bind('gate_password_puskesmas', String(body.gate_password_puskesmas).trim(), now));
+          }
+
+          if (statements.length > 0) {
+            await env.DB.batch(statements);
+          }
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 7b. ROUTE: /api/menu-config (Menu Ordering, Permissions, & Active/Inactive State)
+    if (url.pathname === '/api/menu-config' || url.pathname.startsWith('/api/menu-config/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS maintenance_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT
+          )
+        `).run();
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          const row = await env.DB.prepare("SELECT value FROM maintenance_settings WHERE key = 'menu_configuration'").first();
+          let config = null;
+          if (row && row.value) {
+            try { config = JSON.parse(row.value); } catch (_) {}
+          }
+          return new Response(JSON.stringify({ success: true, data: config }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        const userRole = (request.headers.get('x-user-role') || '').toLowerCase();
+        if (userRole && !userRole.includes('admin') && !userRole.includes('koordinator') && userRole !== 'petugas') {
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'Akses ditolak: Hanya role Admin / Koordinator yang berwenang mengubah konfigurasi menu navigasi.' 
+          }), { status: 403, headers: corsHeaders });
+        }
+        try {
+          const body = await request.json();
+          const configJson = JSON.stringify(body);
+          const now = new Date().toISOString();
+          await env.DB.prepare(`
+            INSERT INTO maintenance_settings (key, value, updated_at) VALUES ('menu_configuration', ?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+          `).bind(configJson, now).run();
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+
+    // --- SHARED DUKCAPIL & NIK PARSER HELPERS ---
+    const PROV_MAP = {
+      '11': 'ACEH', '12': 'SUMATERA UTARA', '13': 'SUMATERA BARAT', '14': 'RIAU',
+      '15': 'JAMBI', '16': 'SUMATERA SELATAN', '17': 'BENGKULU', '18': 'LAMPUNG',
+      '19': 'KEP. BANGKA BELITUNG', '21': 'KEP. RIAU',
+      '31': 'DKI JAKARTA', '32': 'JAWA BARAT', '33': 'JAWA TENGAH',
+      '34': 'DI YOGYAKARTA', '35': 'JAWA TIMUR', '36': 'BANTEN',
+      '51': 'BALI', '52': 'NUSA TENGGARA BARAT', '53': 'NUSA TENGGARA TIMUR',
+      '61': 'KALIMANTAN BARAT', '62': 'KALIMANTAN TENGAH', '63': 'KALIMANTAN SELATAN',
+      '64': 'KALIMANTAN TIMUR', '65': 'KALIMANTAN UTARA',
+      '71': 'SULAWESI UTARA', '72': 'SULAWESI TENGAH', '73': 'SULAWESI SELATAN',
+      '74': 'SULAWESI TENGGARA', '75': 'GORONTALO', '76': 'SULAWESI BARAT',
+      '81': 'MALUKU', '82': 'MALUKU UTARA', '91': 'PAPUA', '92': 'PAPUA BARAT'
+    };
+
+    const KAB_JABAR = {
+      '01': 'KAB. BOGOR', '02': 'KAB. SUKABUMI', '03': 'KAB. CIANJUR',
+      '04': 'KAB. BANDUNG', '05': 'KAB. GARUT', '06': 'KAB. TASIKMALAYA',
+      '07': 'KAB. CIAMIS', '08': 'KAB. KUNINGAN', '09': 'KAB. CIREBON',
+      '10': 'KAB. MAJALENGKA', '11': 'KAB. SUMEDANG', '12': 'KAB. INDRAMAYU',
+      '13': 'KAB. SUBANG', '14': 'KAB. PURWAKARTA', '15': 'KAB. KARAWANG',
+      '16': 'KAB. BEKASI', '17': 'KAB. BANDUNG BARAT', '18': 'KAB. PANGANDARAN',
+      '71': 'KOTA BOGOR', '72': 'KOTA SUKABUMI', '73': 'KOTA BANDUNG',
+      '74': 'KOTA CIREBON', '75': 'KOTA BEKASI', '76': 'KOTA DEPOK',
+      '77': 'KOTA CIMAHI', '78': 'KOTA TASIKMALAYA', '79': 'KOTA BANJAR'
+    };
+
+    function parseNik(nik, nama) {
+      if (!nik || nik.length !== 16 || isNaN(nik)) {
+        return { valid: false, message: 'Format NIK tidak valid (harus 16 digit angka)' };
+      }
+      const provCode = nik.substring(0, 2);
+      const kabCode = nik.substring(2, 4);
+      const kecCode = nik.substring(4, 6);
+      let dobDay = parseInt(nik.substring(6, 8));
+      const dobMonth = parseInt(nik.substring(8, 10));
+      let dobYear = parseInt(nik.substring(10, 12));
+
+      let jenisKelamin = 'Laki-laki';
+      if (dobDay > 40) { jenisKelamin = 'Perempuan'; dobDay -= 40; }
+
+      if (dobMonth < 1 || dobMonth > 12 || dobDay < 1 || dobDay > 31) {
+        return { valid: false, message: 'Data tanggal lahir dalam NIK tidak valid' };
+      }
+
+      const now = new Date();
+      const cur2 = parseInt(now.getFullYear().toString().substring(2));
+      const fullYear = (dobYear <= cur2) ? (2000 + dobYear) : (1900 + dobYear);
+      const fDay = String(dobDay).padStart(2, '0');
+      const fMonth = String(dobMonth).padStart(2, '0');
+      const tanggalLahir = `${fDay}/${fMonth}/${fullYear}`;
+
+      const bd = new Date(fullYear, dobMonth - 1, dobDay);
+      let usia = now.getFullYear() - bd.getFullYear();
+      const md = now.getMonth() - bd.getMonth();
+      if (md < 0 || (md === 0 && now.getDate() < bd.getDate())) usia--;
+
+      const provinsi = PROV_MAP[provCode] || `PROVINSI (KODE ${provCode})`;
+      let kabupaten = (provCode === '32' && KAB_JABAR[kabCode]) ? KAB_JABAR[kabCode] : `KABUPATEN (KODE ${kabCode})`;
+      const KEC_BANDUNG = {
+        '05': 'Banjaran', '13': 'Banjaran', '11': 'Arjasari', '12': 'Pameungpeuk',
+        '14': 'Cangkuang', '15': 'Soreang', '16': 'Katapang', '17': 'Cimaung',
+        '28': 'Baleendah', '29': 'Dayeuhkolot', '30': 'Margahayu', '31': 'Margaasih'
+      };
+      let kecamatan = `KECAMATAN (KODE ${kecCode})`;
+      if (provCode === '32' && kabCode === '04' && KEC_BANDUNG[kecCode]) {
+        kecamatan = KEC_BANDUNG[kecCode];
+      }
+
+      return {
+        valid: true,
+        nik,
+        namaLengkap: nama ? nama.toUpperCase() : 'DATA DUKCAPIL VERIFIED',
+        tempatLahir: kabupaten,
+        tanggalLahir,
+        usia,
+        jenisKelamin,
+        alamat: `${kecamatan}, ${kabupaten}, ${provinsi}`,
+        kecamatan,
+        kelurahan: '-',
+        provinsi,
+        kabupaten
+      };
+    }
+
+    function parseKtpTextRegex(rawText) {
+      if (!rawText || typeof rawText !== 'string') return {};
+      const text = rawText.replace(/\r/g, '');
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+      let nik = '';
+      let nama = '';
+      let tempatLahir = '';
+      let tanggalLahir = '';
+      let jenisKelamin = '';
+      let golDarah = '-';
+      let alamat = '';
+      let rt = '';
+      let rw = '';
+      let kelurahan = '';
+      let kecamatan = '';
+      let kabupaten = '';
+      let provinsi = '';
+      let agama = '';
+      let statusPerkawinan = '';
+      let pekerjaan = '';
+
+      for (const line of lines) {
+        if (/NIK|N1K|N!K|Nomor|NO\./i.test(line) || /^\s*\d{14,18}\s*$/.test(line)) {
+          const candidate = line.replace(/NIK|N1K|N!K|Nomor|NO\.?|[:;\-]/gi, '').trim();
+          const cleaned = candidate
+            .replace(/[OoD]/g, '0')
+            .replace(/[Ili|]/g, '1')
+            .replace(/[B]/g, '8')
+            .replace(/[Ss]/g, '5')
+            .replace(/[Zz]/g, '2')
+            .replace(/\D/g, '');
+          if (cleaned.length === 16) {
+            nik = cleaned;
+            break;
+          }
+        }
+      }
+      if (!nik) {
+        const rawMatches = text.match(/\b\d{16}\b/);
+        if (rawMatches) {
+          nik = rawMatches[0];
+        } else {
+          const noSpace = text.replace(/[\s\.:\-_]+/g, '');
+          const match16 = noSpace.match(/\d{16}/);
+          if (match16) nik = match16[0];
+        }
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (/^(?:Nama|Narna|Name)\s*[:;]?\s*(.*)$/i.test(line)) {
+          const m = line.match(/^(?:Nama|Narna|Name)\s*[:;]?\s*(.*)$/i);
+          if (m && m[1]) nama = m[1].replace(/[:;\-_]/g, '').trim();
+        } else if (!nama && nik && i > 0 && lines[i - 1].includes('NIK') && !lines[i].includes(':') && /^[A-Z\s\.,'\`]{3,40}$/.test(line)) {
+          nama = line.trim();
+        }
+
+        if (/Tempat|Tgl\s*Lahir|Tanggal\s*Lahir/i.test(line)) {
+          const content = line.replace(/.*(?:Lahir)\s*[:;]?\s*/i, '').trim();
+          const parts = content.split(/[,:]/);
+          if (parts.length >= 2) {
+            tempatLahir = parts[0].trim();
+            tanggalLahir = parts.slice(1).join(' ').trim();
+          } else {
+            tempatLahir = content;
+          }
+        }
+
+        if (/Jenis\s*Kelamin|Gender/i.test(line)) {
+          if (/PEREMPUAN|WANITA/i.test(line)) jenisKelamin = 'Perempuan';
+          else if (/LAKI|PRIA/i.test(line)) jenisKelamin = 'Laki-laki';
+
+          if (/Gol\.?\s*Darah\s*[:;]?\s*([ABO\+\-]+)/i.test(line)) {
+            const gm = line.match(/Gol\.?\s*Darah\s*[:;]?\s*([ABO\+\-]+)/i);
+            if (gm) golDarah = gm[1].trim();
+          }
+        }
+
+        if (/^Alamat\s*[:;]?\s*(.*)$/i.test(line)) {
+          const am = line.match(/^Alamat\s*[:;]?\s*(.*)$/i);
+          if (am && am[1]) alamat = am[1].replace(/[:;\-_]/g, '').trim();
+        }
+
+        if (/RT\s*[\/\.]?\s*RW/i.test(line)) {
+          const rtm = line.match(/(\d{1,3})\s*[\/\-]\s*(\d{1,3})/);
+          if (rtm) {
+            rt = rtm[1].padStart(2, '0');
+            rw = rtm[2].padStart(2, '0');
+          }
+        }
+
+        if (/Kel|Desa/i.test(line)) {
+          const km = line.replace(/.*(?:Kel\/Desa|Kelurahan|Desa)\s*[:;]?\s*/i, '').trim();
+          if (km) kelurahan = km.replace(/[:;\-_]/g, '').trim();
+        }
+
+        if (/Kecamatan|Kec\./i.test(line)) {
+          const kecm = line.replace(/.*(?:Kecamatan|Kec\.)\s*[:;]?\s*/i, '').trim();
+          if (kecm) kecamatan = kecm.replace(/[:;\-_]/g, '').trim();
+        }
+
+        if (/Agama/i.test(line)) {
+          const agm = line.replace(/.*(?:Agama)\s*[:;]?\s*/i, '').trim();
+          if (agm) agama = agm.replace(/[:;\-_]/g, '').trim();
+        }
+
+        if (/Status\s*Perkawinan|Status/i.test(line)) {
+          const stm = line.replace(/.*(?:Status\s*Perkawinan|Status)\s*[:;]?\s*/i, '').trim();
+          if (stm) statusPerkawinan = stm.replace(/[:;\-_]/g, '').trim();
+        }
+
+        if (/Pekerjaan/i.test(line)) {
+          const pkm = line.replace(/.*(?:Pekerjaan)\s*[:;]?\s*/i, '').trim();
+          if (pkm) pekerjaan = pkm.replace(/[:;\-_]/g, '').trim();
+        }
+
+        if (/PROVINSI/i.test(line)) {
+          provinsi = line.replace(/.*PROVINSI\s*/i, '').trim();
+        }
+        if (/KABUPATEN|KOTA/i.test(line)) {
+          kabupaten = line.replace(/.*(?:KABUPATEN|KOTA)\s*/i, '').trim();
+        }
+      }
+
+      let normalizedDob = '';
+      if (tanggalLahir) {
+        const dobMatch = tanggalLahir.match(/(\d{1,2})[\s\-\/\.](\d{1,2}|[A-Za-z]+)[\s\-\/\.](\d{4})/);
+        if (dobMatch) {
+          const d = dobMatch[1].padStart(2, '0');
+          let m = dobMatch[2];
+          const y = dobMatch[3];
+          const monthNames = {
+            jan: '01', januari: '01', feb: '02', februari: '02', mar: '03', maret: '03',
+            apr: '04', april: '04', mei: '05', may: '05', jun: '06', juni: '06',
+            jul: '07', juli: '07', agu: '08', agustus: '08', aug: '08', sep: '09', september: '09',
+            okt: '10', oktober: '10', oct: '10', nov: '11', november: '11', des: '12', desember: '12', dec: '12'
+          };
+          if (isNaN(m)) {
+            m = monthNames[m.toLowerCase().substring(0, 3)] || '01';
+          } else {
+            m = m.padStart(2, '0');
+          }
+          normalizedDob = `${y}-${m}-${d}`;
+        }
+      }
+
+      return {
+        nik,
+        nama,
+        tempat_lahir: tempatLahir,
+        tanggal_lahir: normalizedDob || tanggalLahir,
+        jenis_kelamin: jenisKelamin,
+        golongan_darah: golDarah,
+        alamat,
+        rt,
+        rw,
+        kelurahan,
+        kecamatan,
+        kabupaten,
+        provinsi,
+        agama,
+        status_perkawinan: statusPerkawinan,
+        pekerjaan
+      };
+    }
+
+    // 8. ROUTE: /api/dukcapil (KTP Verification Service - Built-in NIK Parser)
+    if (url.pathname.startsWith('/api/dukcapil')) {
+
+      // /api/dukcapil/health
+      if (url.pathname === '/api/dukcapil/health' || url.pathname === '/api/dukcapil/ping') {
+        return new Response(JSON.stringify({
+          status: 'UP',
+          service: 'Dukcapil KTP Verification Service (Cloudflare Worker)',
+          timestamp: new Date().toISOString(),
+          engine: 'NIK Parser v2.0 — Built-in Cloudflare Edge'
+        }), { headers: corsHeaders });
+      }
+
+      // /api/dukcapil/verify-nik
+      if (url.pathname === '/api/dukcapil/verify-nik' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const nik = String(body.nik || '').trim();
+          const nama = String(body.namaLengkap || body.nama || '').trim();
+          const result = parseNik(nik, nama);
+
+          return new Response(JSON.stringify({
+            valid: result.valid,
+            message: result.valid
+              ? 'Data NIK valid — diverifikasi oleh Parser NIK Dukcapil (Cloudflare Edge)'
+              : (result.message || 'NIK tidak valid'),
+            data: result.valid ? result : null,
+            timestamp: new Date().toISOString(),
+            service: 'Dukcapil Service (Cloudflare Worker)'
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ valid: false, message: 'Request tidak valid: ' + err.message }), { status: 400, headers: corsHeaders });
+        }
+      }
+
+      // /api/dukcapil/check-nik
+      if (url.pathname === '/api/dukcapil/check-nik' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const nik = String(body.nik || '').trim();
+          const isValid = nik.length === 16 && !isNaN(nik);
+          return new Response(JSON.stringify({
+            exists: isValid,
+            nik,
+            message: isValid ? 'NIK format valid (16 digit)' : 'NIK format tidak valid',
+            service: 'Dukcapil Service (Cloudflare Worker)',
+            timestamp: new Date().toISOString()
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ exists: false, message: err.message }), { status: 400, headers: corsHeaders });
+        }
+      }
+
+      // /api/dukcapil/docs
+      if (url.pathname === '/api/dukcapil/docs') {
+        return new Response(JSON.stringify({
+          service: 'Dukcapil KTP Verification Service',
+          version: '2.0',
+          engine: 'Cloudflare Worker Edge NIK Parser',
+          endpoints: [
+            { method: 'GET', path: '/api/dukcapil/health', description: 'Health check' },
+            { method: 'POST', path: '/api/dukcapil/verify-nik', description: 'Verify NIK + nama' },
+            { method: 'POST', path: '/api/dukcapil/check-nik', description: 'Check NIK format validity' },
+            { method: 'GET', path: '/api/dukcapil/docs', description: 'API documentation' }
+          ]
+        }), { headers: corsHeaders });
+      }
+
+      return new Response(JSON.stringify({ error: 'Dukcapil endpoint not found' }), { status: 404, headers: corsHeaders });
+    }
+
+    // 9. ROUTE: /api/kamus (Centralized Address Knowledge Base & Cloud Auto-Learning)
+    if (url.pathname === '/api/kamus' || url.pathname.startsWith('/api/kamus/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+
+      // Auto-create table if not existing & auto-alter for lat/lng
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS kamus_alamat (
+            keyword TEXT PRIMARY KEY,
+            kel TEXT,
+            kec TEXT,
+            kab TEXT,
+            prov TEXT,
+            lat REAL,
+            lng REAL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+      } catch (e) { }
+
+      try {
+        await env.DB.prepare('ALTER TABLE kamus_alamat ADD COLUMN lat REAL').run();
+      } catch (_) { }
+      try {
+        await env.DB.prepare('ALTER TABLE kamus_alamat ADD COLUMN lng REAL').run();
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare('SELECT keyword, kel, kec, kab, prov, lat, lng FROM kamus_alamat').all();
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const items = Array.isArray(body) ? body : [body];
+          if (items.length === 0) {
+            return new Response(JSON.stringify({ success: true, count: 0 }), { headers: corsHeaders });
+          }
+
+          const stmt = env.DB.prepare(`
+            INSERT INTO kamus_alamat (keyword, kel, kec, kab, prov, lat, lng) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(keyword) DO UPDATE SET
+              kel = excluded.kel,
+              kec = excluded.kec,
+              kab = excluded.kab,
+              prov = excluded.prov,
+              lat = COALESCE(excluded.lat, kamus_alamat.lat),
+              lng = COALESCE(excluded.lng, kamus_alamat.lng),
+              updated_at = CURRENT_TIMESTAMP
+          `);
+
+          // Chunk operations into batches of 50 to respect D1 limits
+          const batchSize = 50;
+          for (let i = 0; i < items.length; i += batchSize) {
+            const chunk = items.slice(i, i + batchSize);
+            const statements = chunk.map(item => stmt.bind(
+              String(item.keyword).toUpperCase().trim(),
+              item.kel || item.kelurahan || '',
+              item.kec || item.kecamatan || '',
+              item.kab || item.kab_kota || '',
+              item.prov || item.provinsi || '',
+              item.lat ? Number(item.lat) : null,
+              item.lng ? Number(item.lng) : null
+            ));
+            await env.DB.batch(statements);
+          }
+
+          return new Response(JSON.stringify({ success: true, count: items.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          const keywordParam = url.searchParams.get('keyword');
+          if (keywordParam) {
+            const cleanKw = String(keywordParam).toUpperCase().trim();
+            await env.DB.prepare('DELETE FROM kamus_alamat WHERE keyword = ?').bind(cleanKw).run();
+            return new Response(JSON.stringify({ success: true, message: `Keyword ${cleanKw} deleted` }), { headers: corsHeaders });
+          } else {
+            await env.DB.prepare('DELETE FROM kamus_alamat').run();
+            return new Response(JSON.stringify({ success: true, message: 'All kamus data deleted' }), { headers: corsHeaders });
+          }
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 10. ROUTE: /api/ai (Cloudflare Workers AI - Address Auto-Learning & Health Analytics)
+    if (url.pathname === '/api/ai' || url.pathname.startsWith('/api/ai/')) {
+      // Endpoint 1: /api/ai/parse-address
+      if (url.pathname === '/api/ai/parse-address' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const rawAddress = String(body.address || body.alamat || '').trim();
+
+          if (!rawAddress) {
+            return new Response(JSON.stringify({ success: false, error: 'Teks alamat tidak boleh kosong' }), { status: 400, headers: corsHeaders });
+          }
+
+          let parsedResult = null;
+
+          // Attempt 1: Cloudflare Workers AI execution if env.AI is bound
+          if (env.AI) {
+            try {
+              const systemPrompt = `Anda adalah AI Geocoding Spesialis Alamat Indonesia untuk Puskesmas.
+Tugas Anda: Deteksi dan pisahkan teks alamat bebas menjadi 4 Tingkat Wilayah Administrasi Indonesia berikut (Gunakan JSON murni tanpa kata/tanda baca lain):
+{
+  "kampung": "Nama Kampung/Dusun/Jalan",
+  "rt": "Nomor RT jika ada (contoh: 01)",
+  "rw": "Nomor RW 2 digit jika ada (contoh: 04)",
+  "kelurahan": "Tentukan Desa/Kelurahan (Contoh di Kec. Banjaran: Tarajusari, Banjaran, Banjaran Kulon, Ciapus, Kamasan, Kiangroke, Margahayu, Mekarjaya, Pasirmulya, Sindangpanon)",
+  "kecamatan": "Nama Kecamatan (Default: Banjaran jika di wilayah Banjaran, atau sebutkan nama kecamatan lain)",
+  "kabupaten": "Nama Kabupaten/Kota (Default: Kab. Bandung)",
+  "provinsi": "Nama Provinsi (Default: Jawa Barat)"
+}`;
+
+              const aiResponse = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+                messages: [
+                  { role: 'system', content: systemPrompt },
+                  { role: 'user', content: `Analisis alamat ini: "${rawAddress}"` }
+                ],
+                max_tokens: 300,
+                temperature: 0.1
+              });
+
+              if (aiResponse && aiResponse.response) {
+                const textResp = aiResponse.response.trim();
+                const jsonMatch = textResp.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  parsedResult = JSON.parse(jsonMatch[0]);
+                  parsedResult.source = 'Cloudflare Workers AI (Llama 3.1 Edge)';
+                }
+              }
+            } catch (aiErr) {
+              console.log('Workers AI execution fallback to rule parser:', aiErr.message);
+            }
+          }
+
+          // Fallback parser if Workers AI unavailable or didn't return valid JSON
+          if (!parsedResult) {
+            const lower = rawAddress.toLowerCase();
+            let kel = 'Tarajusari';
+            if (lower.includes('kulon')) kel = 'Banjaran Kulon';
+            else if (lower.includes('banjaran')) kel = 'Banjaran';
+            else if (lower.includes('ciapus')) kel = 'Ciapus';
+            else if (lower.includes('kamasan')) kel = 'Kamasan';
+            else if (lower.includes('kiangroke')) kel = 'Kiangroke';
+            else if (lower.includes('sindangpanon')) kel = 'Sindangpanon';
+            else if (lower.includes('pasirmulya')) kel = 'Pasirmulya';
+            else if (lower.includes('mekarjaya')) kel = 'Mekarjaya';
+            else if (lower.includes('margahayu')) kel = 'Margahayu';
+
+            const rwMatch = rawAddress.match(/rw\s*[\.:]?\s*(\d+)/i) || rawAddress.match(/\b0?([1-9]|1[0-9])\b/);
+            const rtMatch = rawAddress.match(/rt\s*[\.:]?\s*(\d+)/i);
+
+            parsedResult = {
+              kampung: rawAddress.replace(/rw\s*\d+/gi, '').replace(/rt\s*\d+/gi, '').trim(),
+              rt: rtMatch ? rtMatch[1] : '',
+              rw: rwMatch ? rwMatch[1].padStart(2, '0') : '',
+              kelurahan: kel,
+              kecamatan: 'Banjaran',
+              kabupaten: 'Kab. Bandung',
+              provinsi: 'Jawa Barat',
+              source: 'Smart Rule Engine (Fallback)'
+            };
+          }
+
+          // Auto-learn: Save parsed address directly to D1 kamus_alamat
+          if (env.DB && parsedResult.kampung) {
+            try {
+              const kw = parsedResult.kampung.toUpperCase();
+              await env.DB.prepare(`
+                INSERT INTO kamus_alamat (keyword, kel, kec, kab, prov)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(keyword) DO UPDATE SET
+                  kel = excluded.kel, kec = excluded.kec, updated_at = CURRENT_TIMESTAMP
+              `).bind(kw, parsedResult.kelurahan, parsedResult.kecamatan, parsedResult.kabupaten, parsedResult.provinsi).run();
+            } catch (dbErr) {
+              console.log('Auto-learn D1 save error:', dbErr.message);
+            }
+          }
+
+          return new Response(JSON.stringify({ success: true, data: parsedResult }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Endpoint 2: /api/ai/analyze-health
+      if (url.pathname === '/api/ai/analyze-health' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          let recommendation = '';
+
+          if (env.AI) {
+            try {
+              const prompt = `Anda adalah Dokter Puskesmas. Buat ringkasan saran medis singkat (maksimal 2 kalimat Bahasa Indonesia) untuk data kesehatan pasien ini:
+Nama/Usia: ${body.nama || 'Pasien'}, ${body.usia || 0} Thn (${body.jk || 'L'})
+TD: ${body.td_sistolik || 0}/${body.td_diastolik || 0} mmHg | Gula: ${body.gula_darah || '-'} | Kolesterol: ${body.kolesterol || '-'} | HB: ${body.hb || '-'} | IMT: ${body.imt || 0}
+Saran Medis:`;
+
+              const aiResp = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 150
+              });
+              if (aiResp && aiResp.response) {
+                recommendation = aiResp.response.trim();
+              }
+            } catch (_) { }
+          }
+
+          if (!recommendation) {
+            const hbNum = parseFloat(body.hb);
+            const sysNum = parseInt(body.td_sistolik);
+            const gluNum = parseFloat(body.gula_darah);
+            const notes = [];
+            if (!isNaN(hbNum) && hbNum < 12.0) notes.push('Terindikasi Anemia (HB < 12.0 g/dL)');
+            if (!isNaN(sysNum) && sysNum >= 140) notes.push('Terindikasi Hipertensi (Sistolik ≥ 140 mmHg)');
+            if (!isNaN(gluNum) && gluNum >= 200) notes.push('Terindikasi Diabetes / Gula Darah Tinggi');
+
+            recommendation = notes.length > 0
+              ? `Perhatian Medis: ${notes.join('. ')}. Disarankan tindak lanjut di Poliklinik Puskesmas.`
+              : 'Hasil skrining secara umum dalam kisaran normal. Tetap pertahankan pola hidup sehat.';
+          }
+
+          return new Response(JSON.stringify({ success: true, recommendation }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // Endpoint 3: /api/ai/ocr-ktp (OCR Identitas KTP/KK/KIA & Auto-Lookup Bank Data)
+      if (url.pathname === '/api/ai/ocr-ktp' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          let imageBase64 = String(body.image || '').trim();
+          let rawText = String(body.text || '').trim();
+          let extracted = null;
+
+          if (imageBase64 && imageBase64.includes('base64,')) {
+            imageBase64 = imageBase64.split('base64,')[1];
+          }
+
+          // 1. Eksekusi Cloudflare Workers AI Vision Model jika ada data gambar dan env.AI aktif
+          if (imageBase64 && env.AI) {
+            try {
+              const binStr = atob(imageBase64);
+              const len = binStr.length;
+              const bytes = new Uint8Array(len);
+              for (let i = 0; i < len; i++) {
+                bytes[i] = binStr.charCodeAt(i);
+              }
+
+              const visionPrompt = `Anda adalah sistem OCR e-KTP / KIA / KK Indonesia berakurasi tinggi.
+Ekstrak data identitas dari foto kartu identitas ini dan format HANYA dalam JSON murni valid (tanpa markdown, tanpa kata pembuka/penutup):
+{
+  "nik": "16 digit angka NIK tanpa spasi",
+  "nama": "Nama Lengkap sesuai kartu",
+  "tempat_lahir": "Tempat Lahir",
+  "tanggal_lahir": "YYYY-MM-DD",
+  "jenis_kelamin": "Laki-laki / Perempuan",
+  "golongan_darah": "-",
+  "alamat": "Alamat Jalan / Kp / Dusun",
+  "rt": "Nomor RT",
+  "rw": "Nomor RW",
+  "kelurahan": "Desa / Kelurahan",
+  "kecamatan": "Kecamatan",
+  "kabupaten": "Kabupaten / Kota",
+  "provinsi": "Provinsi",
+  "agama": "Agama",
+  "status_perkawinan": "Status Perkawinan",
+  "pekerjaan": "Pekerjaan"
+}`;
+
+              const aiVisionResp = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+                prompt: visionPrompt,
+                image: Array.from(bytes),
+                max_tokens: 512,
+                temperature: 0.1
+              });
+
+              if (aiVisionResp && aiVisionResp.response) {
+                const rawResp = aiVisionResp.response;
+                const match = rawResp.match(/\{[\s\S]*\}/);
+                if (match) {
+                  try {
+                    extracted = JSON.parse(match[0]);
+                    extracted.ocr_engine = 'Cloudflare Workers AI Llama 3.2 Vision';
+                  } catch (_) { }
+                }
+                if (!extracted) {
+                  // Fallback: ekstrak NIK langsung dari teks respon vision
+                  const nikRegexMatch = rawResp.match(/\b\d{16}\b/);
+                  if (nikRegexMatch) {
+                    extracted = {
+                      nik: nikRegexMatch[0],
+                      nama: '',
+                      ocr_engine: 'Workers AI Vision Text'
+                    };
+                  }
+                }
+              }
+            } catch (visErr) {
+              console.log('Workers AI Vision attempt note:', visErr.message);
+            }
+          }
+
+          // 2. Jika Vision belum mengembalikan JSON atau ada rawText, gunakan Llama 3.1 Text Parser atau Regex
+          if (!extracted && rawText) {
+            if (env.AI) {
+              try {
+                const textPrompt = `Ekstrak data e-KTP/KIA/KK dari teks mentah ini ke JSON murni valid:
+{
+  "nik": "16 digit NIK",
+  "nama": "Nama Lengkap",
+  "tempat_lahir": "Tempat Lahir",
+  "tanggal_lahir": "YYYY-MM-DD",
+  "jenis_kelamin": "Laki-laki / Perempuan",
+  "alamat": "Jalan/Kp",
+  "rt": "",
+  "rw": "",
+  "kelurahan": "",
+  "kecamatan": "",
+  "kabupaten": "",
+  "provinsi": ""
+}
+Teks mentah:
+${rawText}`;
+                const textResp = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+                  messages: [{ role: 'user', content: textPrompt }],
+                  max_tokens: 400,
+                  temperature: 0.1
+                });
+                if (textResp && textResp.response) {
+                  const match = textResp.response.match(/\{[\s\S]*\}/);
+                  if (match) {
+                    extracted = JSON.parse(match[0]);
+                    extracted.ocr_engine = 'Workers AI Llama 3.1 Text Parser';
+                  }
+                }
+              } catch (_) { }
+            }
+
+            if (!extracted) {
+              extracted = parseKtpTextRegex(rawText);
+              extracted.ocr_engine = 'Smart Indonesian KTP Regex Parser';
+            }
+          }
+
+          // Fallback jika belum ada data yang terekstrak
+          if (!extracted) {
+            extracted = {
+              nik: '',
+              nama: '',
+              tempat_lahir: '',
+              tanggal_lahir: '',
+              jenis_kelamin: '',
+              alamat: '',
+              rt: '',
+              rw: '',
+              kelurahan: '',
+              kecamatan: '',
+              kabupaten: '',
+              provinsi: '',
+              ocr_engine: 'Manual / Standby'
+            };
+          }
+
+          // 3. Normalisasi NIK dan validasi 16 digit
+          let cleanNik = String(extracted.nik || '').replace(/\D/g, '').trim();
+          if (cleanNik.length !== 16 && rawText) {
+            const rawMatch = rawText.match(/\b\d{16}\b/);
+            if (rawMatch) cleanNik = rawMatch[0];
+          }
+          extracted.nik = cleanNik;
+
+          // 4. Verifikasi dan lengkapi dengan Dukcapil mathematical parseNik
+          if (cleanNik.length === 16) {
+            try {
+              const meta = parseNik(cleanNik, extracted.nama);
+              if (meta && meta.valid) {
+                if (!extracted.jenis_kelamin || extracted.jenis_kelamin === '-' || extracted.jenis_kelamin === '') {
+                  extracted.jenis_kelamin = meta.jenisKelamin;
+                }
+                if (!extracted.tanggal_lahir || extracted.tanggal_lahir === '-') {
+                  const parts = meta.tanggalLahir.split('/');
+                  if (parts.length === 3) {
+                    extracted.tanggal_lahir = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                  }
+                }
+                if (!extracted.kabupaten || extracted.kabupaten === '-') {
+                  extracted.kabupaten = meta.kabupaten;
+                }
+                if (!extracted.provinsi || extracted.provinsi === '-') {
+                  extracted.provinsi = meta.provinsi;
+                }
+                if (!extracted.kecamatan || extracted.kecamatan.startsWith('KECAMATAN (KODE')) {
+                  if (meta.kecamatan && !meta.kecamatan.startsWith('KECAMATAN (KODE')) {
+                    extracted.kecamatan = meta.kecamatan;
+                  }
+                }
+                extracted.usia = meta.usia;
+              }
+            } catch (_) { }
+          }
+
+          // 5. Cek Otomatis ke Seluruh BANK DATA D1 (enco_pasien, ckg_gratis_records, records, ckg_sekolah_records)
+          let foundInBankData = false;
+          let bankDataSource = '';
+          let bankDataRecord = null;
+
+          if (cleanNik && cleanNik.length === 16 && env.DB) {
+            try {
+              const p1 = await env.DB.prepare('SELECT * FROM enco_pasien WHERE TRIM(nik) = ? ORDER BY updated_at DESC LIMIT 1').bind(cleanNik).first();
+              if (p1) {
+                foundInBankData = true;
+                bankDataSource = 'Bank Data ASIK (ENCO)';
+                bankDataRecord = p1;
+              }
+            } catch (_) { }
+
+            if (!foundInBankData) {
+              try {
+                const p2 = await env.DB.prepare('SELECT * FROM ckg_gratis_records WHERE TRIM(nik) = ? ORDER BY created_at DESC LIMIT 1').bind(cleanNik).first();
+                if (p2) {
+                  foundInBankData = true;
+                  bankDataSource = 'Cek Kesehatan Gratis';
+                  bankDataRecord = p2;
+                }
+              } catch (_) { }
+            }
+
+            if (!foundInBankData) {
+              try {
+                const p3 = await env.DB.prepare('SELECT * FROM records WHERE TRIM(nik) = ? ORDER BY created_at DESC LIMIT 1').bind(cleanNik).first();
+                if (p3) {
+                  foundInBankData = true;
+                  bankDataSource = 'Database Pasien CKG';
+                  bankDataRecord = p3;
+                }
+              } catch (_) { }
+            }
+
+            if (!foundInBankData) {
+              try {
+                const p4 = await env.DB.prepare('SELECT * FROM ckg_sekolah_records WHERE TRIM(nik) = ? ORDER BY updated_at DESC LIMIT 1').bind(cleanNik).first();
+                if (p4) {
+                  foundInBankData = true;
+                  bankDataSource = 'Bank Data Skrining Sekolah';
+                  bankDataRecord = p4;
+                }
+              } catch (_) { }
+            }
+          }
+
+          if (!foundInBankData && cleanNik.length !== 16 && (!extracted.nama || extracted.nama.length < 3)) {
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Data identitas (NIK / Nama) tidak terbaca dari foto kartu. Pastikan e-KTP / KK / KIA diposisikan lurus, pencahayaan merata, dan angka terlihat jelas tanpa pantulan silau.'
+            }), { headers: corsHeaders });
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            found_in_bank_data: foundInBankData,
+            bank_data_source: bankDataSource,
+            bank_data: bankDataRecord,
+            extracted_data: extracted,
+            nik_valid: cleanNik.length === 16
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+    // 11. ROUTE: /api/alat-bnhp (Alat & BNHP CKG Logistik Database)
+    if (url.pathname === '/api/alat-bnhp' || url.pathname.startsWith('/api/alat-bnhp/')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ckg_logistik_items (
+            id TEXT PRIMARY KEY,
+            kode TEXT,
+            nama TEXT NOT NULL,
+            kategori TEXT NOT NULL DEFAULT 'BNHP',
+            satuan TEXT NOT NULL DEFAULT 'Pcs',
+            stok INTEGER NOT NULL DEFAULT 0,
+            stok_min INTEGER NOT NULL DEFAULT 10,
+            batch_no TEXT DEFAULT '-',
+            expired_date TEXT DEFAULT '-',
+            kondisi TEXT DEFAULT 'Baik',
+            catatan TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ckg_logistik_pemakaian (
+            id TEXT PRIMARY KEY,
+            tanggal TEXT NOT NULL,
+            kegiatan TEXT DEFAULT 'CKG Sekolah',
+            lokasi_kegiatan TEXT NOT NULL,
+            petugas TEXT NOT NULL,
+            items_json TEXT NOT NULL,
+            items_detail_json TEXT,
+            jumlah_sasaran INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'Selesai',
+            catatan TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS ckg_logistik_peminjaman (
+            id TEXT PRIMARY KEY,
+            tanggal_pinjam TEXT NOT NULL,
+            rencana_kembali TEXT,
+            tanggal_kembali TEXT DEFAULT '-',
+            peminjam TEXT NOT NULL,
+            kegiatan TEXT DEFAULT 'CKG Sekolah',
+            lokasi TEXT,
+            kontak TEXT DEFAULT '-',
+            daftar_alat_json TEXT NOT NULL,
+            status TEXT DEFAULT 'Dipinjam',
+            kondisi_kembali TEXT DEFAULT '-',
+            catatan TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+
+        try { await env.DB.prepare("ALTER TABLE ckg_logistik_pemakaian ADD COLUMN kegiatan TEXT DEFAULT 'CKG Sekolah'").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE ckg_logistik_pemakaian ADD COLUMN status TEXT DEFAULT 'Selesai'").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE ckg_logistik_peminjaman ADD COLUMN kegiatan TEXT DEFAULT 'CKG Sekolah'").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE ckg_logistik_peminjaman ADD COLUMN lokasi TEXT").run(); } catch (_) { }
+      } catch (_) { }
+
+      if (request.method === 'GET') {
+        try {
+          const { results: items } = await env.DB.prepare('SELECT * FROM ckg_logistik_items ORDER BY kategori ASC, nama ASC').all();
+          const { results: pemakaian } = await env.DB.prepare('SELECT * FROM ckg_logistik_pemakaian ORDER BY tanggal DESC, created_at DESC LIMIT 200').all();
+          const { results: peminjaman } = await env.DB.prepare('SELECT * FROM ckg_logistik_peminjaman ORDER BY tanggal_pinjam DESC, created_at DESC LIMIT 200').all();
+
+          const formattedPemakaian = (pemakaian || []).map(p => {
+            let details = [];
+            try { if (p.items_detail_json) details = JSON.parse(p.items_detail_json); } catch (e) { }
+            return { ...p, items_detail: details };
+          });
+
+          const formattedPeminjaman = (peminjaman || []).map(p => {
+            let alatList = [];
+            try { if (p.daftar_alat_json) alatList = JSON.parse(p.daftar_alat_json); } catch (e) { }
+            return { ...p, daftar_alat: alatList, daftar_alat_text: Array.isArray(alatList) ? alatList.join(', ') : (p.daftar_alat_json || '-') };
+          });
+
+          return new Response(JSON.stringify({
+            success: true,
+            data: {
+              items: items || [],
+              pemakaian: formattedPemakaian,
+              peminjaman: formattedPeminjaman
+            }
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const action = body.action;
+          const payload = body.payload || {};
+
+          if (action === 'seed' || action === 'save_item') {
+            const items = Array.isArray(payload.items) ? payload.items : (Array.isArray(body.items) ? body.items : [payload]);
+            const stmt = env.DB.prepare(`
+              INSERT INTO ckg_logistik_items (
+                id, kode, nama, kategori, satuan, stok, stok_min, batch_no, expired_date, kondisi, catatan, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                kode = excluded.kode,
+                nama = excluded.nama,
+                kategori = excluded.kategori,
+                satuan = excluded.satuan,
+                stok = excluded.stok,
+                stok_min = excluded.stok_min,
+                batch_no = excluded.batch_no,
+                expired_date = excluded.expired_date,
+                kondisi = excluded.kondisi,
+                catatan = excluded.catatan,
+                updated_at = excluded.updated_at
+            `);
+
+            const statements = items.map(it => stmt.bind(
+              it.id || ('itm-' + Date.now()),
+              it.kode || '',
+              it.nama || '',
+              it.kategori || 'BNHP',
+              it.satuan || 'Pcs',
+              Number(it.stok || 0),
+              Number(it.stok_min || 10),
+              it.batch_no || '-',
+              it.expired_date || '-',
+              it.kondisi || 'Baik',
+              it.catatan || '',
+              new Date().toISOString()
+            ));
+
+            await env.DB.batch(statements);
+            return new Response(JSON.stringify({ success: true, count: items.length }), { headers: corsHeaders });
+          }
+
+          if (action === 'restock') {
+            const { id, qty } = payload;
+            await env.DB.prepare(`
+              UPDATE ckg_logistik_items 
+              SET stok = stok + ?, updated_at = ?
+              WHERE id = ?
+            `).bind(Number(qty || 0), new Date().toISOString(), id).run();
+            return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          }
+
+          if (action === 'catat_pemakaian') {
+            const p = payload;
+            await env.DB.prepare(`
+              INSERT INTO ckg_logistik_pemakaian (
+                id, tanggal, kegiatan, lokasi_kegiatan, petugas, items_json, items_detail_json, jumlah_sasaran, status, catatan
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+              p.id,
+              p.tanggal,
+              p.kegiatan || 'CKG Sekolah',
+              p.lokasi_kegiatan,
+              p.petugas,
+              p.items_json || '',
+              JSON.stringify(p.items_detail || []),
+              Number(p.jumlah_sasaran || 0),
+              p.status || 'Selesai',
+              p.catatan || ''
+            ).run();
+
+            if (Array.isArray(p.items_detail)) {
+              for (const it of p.items_detail) {
+                const reduceQty = Number(it.qty || it.bawa || 0);
+                if (reduceQty > 0) {
+                  await env.DB.prepare(`
+                    UPDATE ckg_logistik_items 
+                    SET stok = MAX(0, stok - ?), updated_at = ?
+                    WHERE id = ?
+                  `).bind(reduceQty, new Date().toISOString(), it.id).run();
+                }
+              }
+            }
+
+            return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          }
+
+          if (action === 'retur_bnhp') {
+            const p = payload;
+            const { id, status, sasaran, sisa_items, items_json, items_detail, catatan } = p;
+
+            // Kembalikan sisa ke stok di Cloudflare D1 (+sisa)
+            if (Array.isArray(sisa_items)) {
+              for (const it of sisa_items) {
+                const returQty = Number(it.sisa || 0);
+                if (returQty > 0) {
+                  await env.DB.prepare(`
+                    UPDATE ckg_logistik_items 
+                    SET stok = stok + ?, updated_at = ?
+                    WHERE id = ?
+                  `).bind(returQty, new Date().toISOString(), it.id).run();
+                }
+              }
+            }
+
+            await env.DB.prepare(`
+              UPDATE ckg_logistik_pemakaian 
+              SET status = ?, jumlah_sasaran = ?, items_json = ?, items_detail_json = ?, catatan = ?
+              WHERE id = ?
+            `).bind(
+              status || 'Selesai',
+              Number(sasaran || 0),
+              items_json || '',
+              JSON.stringify(items_detail || []),
+              catatan || '',
+              id
+            ).run();
+
+            return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          }
+
+          if (action === 'pinjam_alat') {
+            const p = payload;
+            await env.DB.prepare(`
+              INSERT INTO ckg_logistik_peminjaman (
+                id, tanggal_pinjam, rencana_kembali, tanggal_kembali, peminjam, kegiatan, lokasi, kontak, daftar_alat_json, status, kondisi_kembali, catatan
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+              p.id,
+              p.tanggal_pinjam,
+              p.rencana_kembali || '',
+              p.tanggal_kembali || '-',
+              p.peminjam,
+              p.kegiatan || 'CKG Sekolah',
+              p.lokasi || '',
+              p.kontak || '-',
+              JSON.stringify(p.daftar_alat || []),
+              p.status || 'Dipinjam',
+              p.kondisi_kembali || '-',
+              p.catatan || ''
+            ).run();
+
+            return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          }
+
+          if (action === 'kembali_alat') {
+            const p = payload;
+            await env.DB.prepare(`
+              UPDATE ckg_logistik_peminjaman
+              SET status = 'Dikembalikan',
+                  tanggal_kembali = ?,
+                  kondisi_kembali = ?,
+                  catatan = ?
+              WHERE id = ?
+            `).bind(
+              p.tanggal_kembali || new Date().toISOString().split('T')[0],
+              p.kondisi_kembali || 'Lengkap & Berfungsi Baik',
+              p.catatan || '',
+              p.id
+            ).run();
+
+            return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          }
+
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      if (request.method === 'DELETE') {
+        try {
+          const type = url.searchParams.get('type') || 'item';
+          const id = url.searchParams.get('id');
+          if (!id) {
+            return new Response(JSON.stringify({ success: false, error: 'id required' }), { status: 400, headers: corsHeaders });
+          }
+          if (type === 'pemakaian') {
+            await env.DB.prepare('DELETE FROM ckg_logistik_pemakaian WHERE id = ?').bind(id).run();
+          } else if (type === 'peminjaman') {
+            await env.DB.prepare('DELETE FROM ckg_logistik_peminjaman WHERE id = ?').bind(id).run();
+          } else {
+            await env.DB.prepare('DELETE FROM ckg_logistik_items WHERE id = ?').bind(id).run();
+          }
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+    }
+
+
+    // ====================================================================
+    // ROUTE: /api/enco/* (INTEGRASI EXTENSION ENCO & DATABASE ASIK)
+    // ====================================================================
+    if (url.pathname.startsWith('/api/enco')) {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+
+      // Ensure ENCO tables exist
+      try {
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS enco_pasien (
+            id TEXT PRIMARY KEY,
+            nik TEXT NOT NULL UNIQUE,
+            nama TEXT NOT NULL,
+            tanggal_lahir TEXT,
+            jenis_kelamin TEXT,
+            status_pernikahan TEXT DEFAULT '',
+            pekerjaan TEXT DEFAULT '',
+            provinsi TEXT DEFAULT 'Jawa Barat',
+            kab_kota TEXT DEFAULT 'Kab. Bandung',
+            kecamatan TEXT DEFAULT 'Banjaran',
+            kelurahan TEXT DEFAULT '',
+            alamat TEXT DEFAULT '',
+            no_tiket TEXT,
+            kategori TEXT DEFAULT 'Umum',
+            status_pendaftaran TEXT DEFAULT 'Sudah Terdaftar',
+            status_pelayanan TEXT DEFAULT 'Belum Pelayanan',
+            tanggal_daftar TEXT,
+            tanggal_pelayanan TEXT,
+            petugas_enco TEXT DEFAULT 'Petugas',
+            faskes TEXT DEFAULT 'Puskesmas Banjaran Kota',
+            raw_details TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+
+        // Migrations for existing enco_pasien table
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN status_pernikahan TEXT DEFAULT ''").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN pekerjaan TEXT DEFAULT ''").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN provinsi TEXT DEFAULT 'Jawa Barat'").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN kab_kota TEXT DEFAULT 'Kab. Bandung'").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN kecamatan TEXT DEFAULT 'Banjaran'").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN kelurahan TEXT DEFAULT ''").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_pasien ADD COLUMN alamat TEXT DEFAULT ''").run(); } catch (_) { }
+
+        // Bersihkan data ganda yang sudah ada sebelumnya berdasarkan NIK
+        try {
+          await env.DB.prepare(`
+            DELETE FROM enco_pasien 
+            WHERE rowid NOT IN (
+              SELECT MAX(rowid) FROM enco_pasien GROUP BY TRIM(nik)
+            )
+          `).run();
+        } catch (_) { }
+
+        // Buat UNIQUE Index pada kolom NIK agar tidak pernah ada data ganda
+        try {
+          await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_enco_pasien_nik_unique ON enco_pasien(nik)").run();
+        } catch (_) { }
+
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS enco_bot_queue (
+            id TEXT PRIMARY KEY,
+            jenis TEXT NOT NULL,
+            record_id TEXT NOT NULL,
+            nik TEXT NOT NULL,
+            nama TEXT NOT NULL,
+            data_json TEXT NOT NULL,
+            status_pendaftaran TEXT DEFAULT 'antre',
+            status_pelayanan TEXT DEFAULT 'antre',
+            no_tiket TEXT DEFAULT '',
+            keterangan TEXT DEFAULT '',
+            petugas_antrean TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+        try { await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_bot_queue_jenis ON enco_bot_queue(jenis)').run(); } catch (_) { }
+        try { await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_bot_queue_nik ON enco_bot_queue(nik)').run(); } catch (_) { }
+        try { await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_bot_queue_record_id ON enco_bot_queue(record_id)').run(); } catch (_) { }
+        try { await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_bot_queue_status_reg ON enco_bot_queue(status_pendaftaran)').run(); } catch (_) { }
+
+        await env.DB.prepare(`
+          CREATE TABLE IF NOT EXISTS enco_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            petugas TEXT NOT NULL,
+            jenis_kegiatan TEXT NOT NULL,
+            total_pasien INTEGER DEFAULT 0,
+            jumlah_berhasil INTEGER DEFAULT 0,
+            jumlah_terdaftar INTEGER DEFAULT 0,
+            jumlah_gagal INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'Selesai',
+            keterangan TEXT,
+            r2_key TEXT DEFAULT '',
+            session_id TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `).run();
+
+        try { await env.DB.prepare("ALTER TABLE enco_logs ADD COLUMN r2_key TEXT DEFAULT ''").run(); } catch (_) { }
+        try { await env.DB.prepare("ALTER TABLE enco_logs ADD COLUMN session_id TEXT DEFAULT ''").run(); } catch (_) { }
+      } catch (_) { }
+
+      // 1. GET /api/enco/users (List User Petugas Puskesmas untuk Dropdown Login ENCO)
+      if (url.pathname === '/api/enco/users' && request.method === 'GET') {
+        try {
+          const { results } = await env.DB.prepare(`
+            SELECT nama_user, role, 
+                   CASE WHEN password IS NOT NULL AND password != '' THEN 1 ELSE 0 END as need_password
+            FROM users 
+            ORDER BY id ASC
+          `).all();
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 2. POST /api/enco/login (Verifikasi Login Ekstensi ENCO)
+      if (url.pathname === '/api/enco/login' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const nama_user = (body.nama_user || body.username || '').trim();
+          const password = (body.password || '').trim();
+
+          if (!nama_user) {
+            return new Response(JSON.stringify({ success: false, error: 'Nama Pegawai harus dipilih' }), { status: 400, headers: corsHeaders });
+          }
+
+          const user = await env.DB.prepare('SELECT nama_user, password, role FROM users WHERE LOWER(nama_user) = LOWER(?)').bind(nama_user).first();
+          if (!user) {
+            return new Response(JSON.stringify({ success: false, error: `Pegawai ${nama_user} tidak terdaftar di database` }), { status: 401, headers: corsHeaders });
+          }
+
+          const dbPassword = (user.password || '').trim();
+          if (dbPassword !== '') {
+            if (!password || password !== dbPassword) {
+              return new Response(JSON.stringify({ success: false, error: 'Kata sandi yang Anda masukkan salah' }), { status: 401, headers: corsHeaders });
+            }
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            user: {
+              nama_user: user.nama_user,
+              role: user.role || 'Petugas'
+            }
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 3. POST /api/enco/sync-pasien (Kirim / Rekam Pasien ASIK dari ENCO dengan Identitas Lengkap Excel)
+      if (url.pathname === '/api/enco/sync-pasien' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const list = Array.isArray(body) ? body : [body];
+          if (list.length === 0) {
+            return new Response(JSON.stringify({ success: true, count: 0 }), { headers: corsHeaders });
+          }
+
+          // Deduplikasi list berdasarkan NIK agar tidak ada duplikasi dalam satu batch
+          const uniqueMap = new Map();
+          for (const item of list) {
+            const cleanNik = String(item.nik || '').replace(/\D/g, '').trim() || String(item.nik || '').trim();
+            if (!cleanNik) continue;
+            if (uniqueMap.has(cleanNik)) {
+              const prev = uniqueMap.get(cleanNik);
+              uniqueMap.set(cleanNik, { ...prev, ...item, nik: cleanNik });
+            } else {
+              uniqueMap.set(cleanNik, { ...item, nik: cleanNik });
+            }
+          }
+          const uniqueList = Array.from(uniqueMap.values());
+          if (uniqueList.length === 0) {
+            return new Response(JSON.stringify({ success: true, count: 0 }), { headers: corsHeaders });
+          }
+
+          const now = new Date().toISOString();
+          const todayDate = now.split('T')[0];
+
+          const stmt = env.DB.prepare(`
+            INSERT INTO enco_pasien (
+              id, nik, nama, tanggal_lahir, jenis_kelamin,
+              status_pernikahan, pekerjaan,
+              provinsi, kab_kota, kecamatan, kelurahan, alamat,
+              no_tiket, kategori, status_pendaftaran, status_pelayanan,
+              tanggal_daftar, tanggal_pelayanan, petugas_enco, faskes,
+              raw_details, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(nik) DO UPDATE SET
+              nama = excluded.nama,
+              tanggal_lahir = CASE WHEN excluded.tanggal_lahir != '' THEN excluded.tanggal_lahir ELSE enco_pasien.tanggal_lahir END,
+              jenis_kelamin = CASE WHEN excluded.jenis_kelamin != '' THEN excluded.jenis_kelamin ELSE enco_pasien.jenis_kelamin END,
+              status_pernikahan = CASE WHEN excluded.status_pernikahan != '' THEN excluded.status_pernikahan ELSE enco_pasien.status_pernikahan END,
+              pekerjaan = CASE WHEN excluded.pekerjaan != '' THEN excluded.pekerjaan ELSE enco_pasien.pekerjaan END,
+              provinsi = CASE WHEN excluded.provinsi != '' THEN excluded.provinsi ELSE enco_pasien.provinsi END,
+              kab_kota = CASE WHEN excluded.kab_kota != '' THEN excluded.kab_kota ELSE enco_pasien.kab_kota END,
+              kecamatan = CASE WHEN excluded.kecamatan != '' THEN excluded.kecamatan ELSE enco_pasien.kecamatan END,
+              kelurahan = CASE WHEN excluded.kelurahan != '' THEN excluded.kelurahan ELSE enco_pasien.kelurahan END,
+              alamat = CASE WHEN excluded.alamat != '' THEN excluded.alamat ELSE enco_pasien.alamat END,
+              no_tiket = CASE WHEN excluded.no_tiket != '' THEN excluded.no_tiket ELSE enco_pasien.no_tiket END,
+              kategori = CASE WHEN excluded.kategori != '' THEN excluded.kategori ELSE enco_pasien.kategori END,
+              status_pendaftaran = CASE WHEN excluded.status_pendaftaran != '' THEN excluded.status_pendaftaran ELSE enco_pasien.status_pendaftaran END,
+              status_pelayanan = CASE 
+                WHEN excluded.status_pelayanan IS NOT NULL AND excluded.status_pelayanan != '' AND excluded.status_pelayanan != 'Belum Pelayanan'
+                THEN excluded.status_pelayanan 
+                ELSE enco_pasien.status_pelayanan 
+              END,
+              tanggal_daftar = CASE WHEN excluded.tanggal_daftar != '' THEN excluded.tanggal_daftar ELSE enco_pasien.tanggal_daftar END,
+              tanggal_pelayanan = CASE WHEN excluded.tanggal_pelayanan != '' THEN excluded.tanggal_pelayanan ELSE enco_pasien.tanggal_pelayanan END,
+              petugas_enco = excluded.petugas_enco,
+              faskes = CASE WHEN excluded.faskes != '' THEN excluded.faskes ELSE enco_pasien.faskes END,
+              raw_details = CASE WHEN excluded.raw_details != '' THEN excluded.raw_details ELSE enco_pasien.raw_details END,
+              updated_at = excluded.updated_at
+          `);
+
+          const statements = uniqueList.map(p => {
+            const rawNik = String(p.nik || '').replace(/\D/g, '').trim() || String(p.nik || '').trim();
+            const id = `enco_${rawNik}`;
+            const details = typeof p.raw_details === 'object' ? JSON.stringify(p.raw_details) : (p.raw_details || '');
+
+            return stmt.bind(
+              id,
+              rawNik,
+              String(p.nama || '').trim(),
+              String(p.tanggal_lahir || p.tanggallahir || p.dob || p.tgllahir || '').trim(),
+              String(p.jenis_kelamin || p.jeniskelamin || p.jk || p.gender || '').trim(),
+              String(p.status_pernikahan || p.statuspernikahan || p.statusnikah || p.nikah || '').trim(),
+              String(p.pekerjaan || p.job || '').trim(),
+              String(p.provinsi || p.province || 'Jawa Barat').trim(),
+              String(p.kab_kota || p.kabkota || p.kota || p.kabupaten || 'Kab. Bandung').trim(),
+              String(p.kecamatan || p.district || 'Banjaran').trim(),
+              String(p.kelurahan || p.desa || p.subdistrict || '').trim(),
+              String(p.alamat || p.detailalamat || p.detaildomisili || p.address || '').trim(),
+              String(p.no_tiket || p.nomor_tiket || p.ticket || '').trim(),
+              String(p.kategori || p.category || 'Umum').trim(),
+              String(p.status_pendaftaran || 'Sudah Terdaftar').trim(),
+              String(p.status_pelayanan || 'Belum Pelayanan').trim(),
+              String(p.tanggal_daftar || todayDate).trim(),
+              String(p.tanggal_pelayanan || (p.status_pelayanan === 'Selesai Pelayanan' ? todayDate : '')).trim(),
+              String(p.petugas_enco || p.petugas || 'Petugas').trim(),
+              String(p.faskes || 'Puskesmas Banjaran Kota').trim(),
+              details,
+              now,
+              now
+            );
+          });
+
+          await env.DB.batch(statements);
+          return new Response(JSON.stringify({ success: true, count: uniqueList.length }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 4. POST /api/enco/sync-log (Kirim Log Riwayat Otomasi ENCO)
+      if (url.pathname === '/api/enco/sync-log' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const now = new Date().toISOString();
+          await env.DB.prepare(`
+            INSERT INTO enco_logs (
+              petugas, jenis_kegiatan, total_pasien, jumlah_berhasil,
+              jumlah_terdaftar, jumlah_gagal, status, keterangan, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            body.petugas || 'Petugas',
+            body.jenis_kegiatan || 'Pendaftaran',
+            Number(body.total_pasien) || 0,
+            Number(body.jumlah_berhasil) || 0,
+            Number(body.jumlah_terdaftar) || 0,
+            Number(body.jumlah_gagal) || 0,
+            body.status || 'Selesai',
+            body.keterangan || '',
+            now
+          ).run();
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 4b. GET /api/enco/lookup-nik (Cek NIK Pasien / Wali di Bank Data ASIK ENCO & Records)
+      if (url.pathname === '/api/enco/lookup-nik' && request.method === 'GET') {
+        try {
+          const rawNik = (url.searchParams.get('nik') || '').replace(/\D/g, '').trim();
+          if (!rawNik) {
+            return new Response(JSON.stringify({ success: false, found: false, error: 'Parameter NIK dibutuhkan' }), { headers: corsHeaders });
+          }
+
+          // 1. Cek di tabel enco_pasien (Bank Data Rekam Pasien ASIK)
+          let patient = await env.DB.prepare('SELECT * FROM enco_pasien WHERE TRIM(nik) = ? ORDER BY updated_at DESC, created_at DESC LIMIT 1').bind(rawNik).first();
+
+          // 2. Fallback: Cek di ckg_gratis_records atau records jika belum ada di enco_pasien
+          if (!patient) {
+            let rec = null;
+            try {
+              rec = await env.DB.prepare('SELECT * FROM ckg_gratis_records WHERE TRIM(nik) = ? ORDER BY created_at DESC LIMIT 1').bind(rawNik).first();
+            } catch (_) { }
+            if (!rec) {
+              try {
+                rec = await env.DB.prepare('SELECT * FROM records WHERE TRIM(nik) = ? ORDER BY created_at DESC LIMIT 1').bind(rawNik).first();
+              } catch (_) { }
+            }
+            if (rec) {
+              patient = {
+                nik: rec.nik,
+                nama: rec.nama || rec.nama_pasien || '',
+                tanggal_lahir: rec.tanggal_lahir || '',
+                jenis_kelamin: rec.jenis_kelamin || 'L',
+                status_pernikahan: rec.status_pernikahan || '',
+                pekerjaan: rec.pekerjaan || '',
+                alamat: rec.alamat || '',
+                provinsi: rec.provinsi || 'Jawa Barat',
+                kab_kota: rec.kab_kota || 'Kab. Bandung',
+                kecamatan: rec.kecamatan || 'Banjaran',
+                kelurahan: rec.kelurahan || '',
+                no_wa: rec.no_whatsapp || rec.no_wa || ''
+              };
+            }
+          }
+
+          if (patient) {
+            return new Response(JSON.stringify({ success: true, found: true, data: patient }), { headers: corsHeaders });
+          } else {
+            return new Response(JSON.stringify({ success: true, found: false }), { headers: corsHeaders });
+          }
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 5. GET /api/enco/records (Data Pasien ENCO untuk Tampilan Web ckgbankot)
+      if (url.pathname === '/api/enco/records' && request.method === 'GET') {
+        try {
+          const search = url.searchParams.get('search') || '';
+          const statusPendaftaran = url.searchParams.get('status_pendaftaran') || '';
+          const statusPelayanan = url.searchParams.get('status_pelayanan') || '';
+          const petugas = url.searchParams.get('petugas') || '';
+          const tanggal = url.searchParams.get('tanggal') || '';
+          const limit = parseInt(url.searchParams.get('limit') || '50', 10);
+          const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+
+          let whereClause = 'WHERE 1=1';
+          const params = [];
+
+          if (search) {
+            whereClause += ' AND (nik LIKE ? OR LOWER(nama) LIKE ? OR LOWER(no_tiket) LIKE ? OR LOWER(alamat) LIKE ? OR LOWER(kelurahan) LIKE ?)';
+            const s = `%${search.toLowerCase()}%`;
+            params.push(s, s, s, s, s);
+          }
+          if (statusPendaftaran) {
+            whereClause += ' AND status_pendaftaran = ?';
+            params.push(statusPendaftaran);
+          }
+          if (statusPelayanan) {
+            whereClause += ' AND status_pelayanan = ?';
+            params.push(statusPelayanan);
+          }
+          if (petugas) {
+            whereClause += ' AND petugas_enco = ?';
+            params.push(petugas);
+          }
+          if (tanggal) {
+            whereClause += ' AND (tanggal_daftar = ? OR tanggal_pelayanan = ?)';
+            params.push(tanggal, tanggal);
+          }
+
+          const countRes = await env.DB.prepare(`SELECT COUNT(DISTINCT TRIM(nik)) as total FROM enco_pasien ${whereClause}`).bind(...params).first();
+          const total = countRes ? countRes.total : 0;
+
+          const dataParams = [...params, limit, offset];
+          const { results } = await env.DB.prepare(`
+            SELECT * FROM enco_pasien 
+            ${whereClause} 
+            GROUP BY TRIM(nik)
+            ORDER BY updated_at DESC, created_at DESC 
+            LIMIT ? OFFSET ?
+          `).bind(...dataParams).all();
+
+          return new Response(JSON.stringify({
+            success: true,
+            total,
+            limit,
+            offset,
+            data: results || []
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 6. GET /api/enco/logs (Log Riwayat Otomasi untuk Tampilan Web ckgbankot)
+      if (url.pathname === '/api/enco/logs' && request.method === 'GET') {
+        try {
+          const limit = parseInt(url.searchParams.get('limit') || '100', 10);
+          const petugas = (url.searchParams.get('petugas') || '').trim();
+
+          let query = 'SELECT * FROM enco_logs';
+          const params = [];
+          if (petugas) {
+            query += ' WHERE LOWER(petugas) = LOWER(?)';
+            params.push(petugas);
+          }
+          query += ' ORDER BY created_at DESC LIMIT ?';
+          params.push(limit);
+
+          const { results } = await env.DB.prepare(query).bind(...params).all();
+          return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 7. GET /api/enco/stats (Statistik Ringkasan ENCO)
+      if (url.pathname === '/api/enco/stats' && request.method === 'GET') {
+        try {
+          const totalPasien = await env.DB.prepare('SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien').first();
+          const terdaftar = await env.DB.prepare("SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE status_pendaftaran LIKE '%Terdaftar%'").first();
+          const selesaiLayanan = await env.DB.prepare("SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE status_pelayanan = 'Selesai Pelayanan'").first();
+          const totalLogs = await env.DB.prepare('SELECT COUNT(*) as c FROM enco_logs').first();
+          const lastLog = await env.DB.prepare('SELECT petugas, created_at FROM enco_logs ORDER BY created_at DESC LIMIT 1').first();
+
+          return new Response(JSON.stringify({
+            success: true,
+            stats: {
+              total_pasien: totalPasien?.c || 0,
+              total_terdaftar: terdaftar?.c || 0,
+              total_selesai_layanan: selesaiLayanan?.c || 0,
+              total_logs: totalLogs?.c || 0,
+              last_petugas: lastLog?.petugas || '-',
+              last_active: lastLog?.created_at || '-'
+            }
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 8. DELETE /api/enco/delete (Hapus Data / Log ENCO)
+      if (url.pathname === '/api/enco/delete' && (request.method === 'DELETE' || request.method === 'POST')) {
+        try {
+          let body = {};
+          if (request.method === 'POST') {
+            try { body = await request.json(); } catch (_) { }
+          }
+          const type = url.searchParams.get('type') || body.type || 'pasien';
+          const id = url.searchParams.get('id') || body.id;
+
+          if (type === 'all_records') {
+            await env.DB.prepare('DELETE FROM enco_pasien').run();
+            return new Response(JSON.stringify({ success: true, message: 'Semua rekam pasien ENCO berhasil dihapus' }), { headers: corsHeaders });
+          }
+          if (type === 'all_logs') {
+            await env.DB.prepare('DELETE FROM enco_logs').run();
+            return new Response(JSON.stringify({ success: true, message: 'Semua log aktivitas ENCO berhasil dihapus' }), { headers: corsHeaders });
+          }
+          if (id) {
+            if (type === 'log') {
+              const logId = parseInt(id, 10);
+              if (!isNaN(logId)) {
+                await env.DB.prepare('DELETE FROM enco_logs WHERE id = ?').bind(logId).run();
+              } else {
+                await env.DB.prepare('DELETE FROM enco_logs WHERE id = ?').bind(id).run();
+              }
+            } else {
+              await env.DB.prepare('DELETE FROM enco_pasien WHERE id = ? OR nik = ?').bind(id, id).run();
+            }
+            return new Response(JSON.stringify({ success: true, message: 'Data berhasil dihapus' }), { headers: corsHeaders });
+          }
+          return new Response(JSON.stringify({ success: false, error: 'Parameter id dibutuhkan' }), { status: 400, headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // ====================================================================
+      // 9. CLOUDFLARE R2 ENGINE: SESI LOG RIWAYAT PER AKUN PETUGAS (enco-storage)
+      // ====================================================================
+
+      function getR2UserSlug(namaUser) {
+        return String(namaUser || 'petugas')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]/g, '_')
+          .replace(/_+/g, '_');
+      }
+
+      // 9A. POST /api/enco/sessions (Simpan / Sinkronisasi Sesi Log ke R2 per Akun)
+      if (url.pathname === '/api/enco/sessions' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const petugas = (body.petugas || 'Petugas').trim();
+          const menu = (body.menu || 'pendaftaran').toLowerCase();
+          const session = body.session;
+
+          if (!session || !session.id) {
+            return new Response(JSON.stringify({ success: false, error: 'Data sesi (id) dibutuhkan' }), { status: 400, headers: corsHeaders });
+          }
+
+          const userSlug = getR2UserSlug(petugas);
+          const detailKey = `logs/${userSlug}/${menu}_${session.id}.json`;
+          const indexKey = `logs/${userSlug}/${menu}_sessions.json`;
+
+          // 1. Simpan detail sesi lengkap (snapshot ribuan pasien) ke Cloudflare R2
+          if (env.Enco) {
+            await env.Enco.put(detailKey, JSON.stringify(session), {
+              httpMetadata: { contentType: 'application/json' },
+              customMetadata: {
+                petugas,
+                menu,
+                sessionId: session.id,
+                fileName: session.fileName || '',
+                total: String(session.total || 0),
+                berhasil: String(session.berhasil || 0),
+                gagal: String(session.gagal || 0),
+                pernahInput: String(session.pernahInput || 0),
+                updatedAt: new Date().toISOString()
+              }
+            });
+
+            // 2. Perbarui index daftar sesi untuk menu ini di R2 (agar ringan diambil)
+            let sessionList = [];
+            try {
+              const existingIndex = await env.Enco.get(indexKey);
+              if (existingIndex) {
+                sessionList = JSON.parse(await existingIndex.text()) || [];
+              }
+            } catch (_) { }
+
+            const summaryItem = {
+              id: session.id,
+              menu,
+              timestamp: session.timestamp || Date.now(),
+              dateStr: session.dateStr || '',
+              fileName: session.fileName || 'Input Manual',
+              category: session.category || 'UMUM',
+              total: Number(session.total || 0),
+              berhasil: Number(session.berhasil || 0),
+              gagal: Number(session.gagal || 0),
+              sebagian: Number(session.sebagian || 0),
+              pernahInput: Number(session.pernahInput || 0),
+              status: session.status || 'idle',
+              r2_key: detailKey,
+              updatedAt: new Date().toISOString()
+            };
+
+            const existingIdx = sessionList.findIndex(s => s.id === session.id);
+            if (existingIdx !== -1) {
+              sessionList[existingIdx] = summaryItem;
+            } else {
+              sessionList.unshift(summaryItem);
+            }
+            if (sessionList.length > 50) sessionList = sessionList.slice(0, 50);
+
+            await env.Enco.put(indexKey, JSON.stringify(sessionList), {
+              httpMetadata: { contentType: 'application/json' }
+            });
+          }
+
+          // 3. Rekam / Perbarui ringkasan log ke D1 (enco_logs) agar terlihat di tabel log web
+          if (env.DB) {
+            try {
+              const now = new Date().toISOString();
+              const existingLog = await env.DB.prepare('SELECT id FROM enco_logs WHERE session_id = ?').bind(session.id).first();
+              if (existingLog) {
+                await env.DB.prepare(`
+                  UPDATE enco_logs SET
+                    total_pasien = ?,
+                    jumlah_berhasil = ?,
+                    jumlah_terdaftar = ?,
+                    jumlah_gagal = ?,
+                    status = ?,
+                    keterangan = ?,
+                    r2_key = ?
+                  WHERE session_id = ?
+                `).bind(
+                  Number(session.total || 0),
+                  Number(session.berhasil || 0),
+                  Number(session.pernahInput || 0),
+                  Number(session.gagal || 0),
+                  session.status === 'completed' ? 'Selesai' : (session.status === 'has-error' ? 'Selesai Sebagian' : 'Sedang Berjalan'),
+                  `Sesi ${session.fileName || 'Data'}: ${session.berhasil || 0} berhasil, ${session.pernahInput || 0} sudah terdaftar, ${session.gagal || 0} error.`,
+                  detailKey,
+                  session.id
+                ).run();
+              } else {
+                await env.DB.prepare(`
+                  INSERT INTO enco_logs (
+                    petugas, jenis_kegiatan, total_pasien, jumlah_berhasil,
+                    jumlah_terdaftar, jumlah_gagal, status, keterangan, r2_key, session_id, created_at
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `).bind(
+                  petugas,
+                  `Pendaftaran ${session.category || 'UMUM'}`,
+                  Number(session.total || 0),
+                  Number(session.berhasil || 0),
+                  Number(session.pernahInput || 0),
+                  Number(session.gagal || 0),
+                  session.status === 'completed' ? 'Selesai' : 'Sedang Berjalan',
+                  `Sesi ${session.fileName || 'Data'}: ${session.berhasil || 0} berhasil, ${session.pernahInput || 0} sudah terdaftar, ${session.gagal || 0} error.`,
+                  detailKey,
+                  session.id,
+                  now
+                ).run();
+              }
+            } catch (d1Err) {
+              console.warn('[ENCO Sessions] D1 log sync warning:', d1Err);
+            }
+          }
+
+          return new Response(JSON.stringify({ success: true, key: detailKey }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 9B. GET /api/enco/sessions (Ambil Daftar Sesi Akun dari R2)
+      if (url.pathname === '/api/enco/sessions' && request.method === 'GET') {
+        try {
+          const petugas = (url.searchParams.get('petugas') || '').trim();
+          const menu = (url.searchParams.get('menu') || 'pendaftaran').toLowerCase();
+          if (!petugas) {
+            return new Response(JSON.stringify({ success: false, error: 'Parameter petugas dibutuhkan' }), { status: 400, headers: corsHeaders });
+          }
+
+          if (env.Enco) {
+            const userSlug = getR2UserSlug(petugas);
+            const indexKey = `logs/${userSlug}/${menu}_sessions.json`;
+            const obj = await env.Enco.get(indexKey);
+            if (obj) {
+              const list = JSON.parse(await obj.text()) || [];
+              return new Response(JSON.stringify({ success: true, data: list, source: 'r2' }), { headers: corsHeaders });
+            }
+          }
+
+          return new Response(JSON.stringify({ success: true, data: [], source: 'empty' }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 9C. GET /api/enco/sessions/detail (Ambil Snapshot Detail Pasien Sesi dari R2)
+      if (url.pathname === '/api/enco/sessions/detail' && request.method === 'GET') {
+        try {
+          const key = url.searchParams.get('key');
+          const petugas = url.searchParams.get('petugas');
+          const sessionId = url.searchParams.get('id');
+          const menu = url.searchParams.get('menu') || 'pendaftaran';
+
+          let r2Key = key;
+          if (!r2Key && petugas && sessionId) {
+            const userSlug = getR2UserSlug(petugas);
+            r2Key = `logs/${userSlug}/${menu}_${sessionId}.json`;
+          }
+
+          if (!r2Key) {
+            return new Response(JSON.stringify({ success: false, error: 'Key atau id sesi dibutuhkan' }), { status: 400, headers: corsHeaders });
+          }
+
+          if (!env.Enco) {
+            return new Response(JSON.stringify({ success: false, error: 'R2 Bucket Enco belum terhubung di Cloudflare' }), { status: 500, headers: corsHeaders });
+          }
+
+          const obj = await env.Enco.get(r2Key);
+          if (!obj) {
+            return new Response(JSON.stringify({ success: false, error: 'File sesi tidak ditemukan di R2' }), { status: 404, headers: corsHeaders });
+          }
+
+          const text = await obj.text();
+          const sessionData = JSON.parse(text);
+          return new Response(JSON.stringify({ success: true, session: sessionData }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 9D. DELETE /api/enco/sessions (Hapus Sesi Log dari R2)
+      if (url.pathname === '/api/enco/sessions' && (request.method === 'DELETE' || request.method === 'POST')) {
+        try {
+          let body = {};
+          if (request.method === 'POST') {
+            try { body = await request.json(); } catch (_) { }
+          }
+          const key = url.searchParams.get('key') || body.key;
+          const petugas = url.searchParams.get('petugas') || body.petugas;
+          const sessionId = url.searchParams.get('id') || body.id;
+          const menu = url.searchParams.get('menu') || body.menu || 'pendaftaran';
+
+          if (env.Enco) {
+            if (key) {
+              await env.Enco.delete(key);
+            }
+            if (petugas && sessionId) {
+              const userSlug = getR2UserSlug(petugas);
+              const detailKey = `logs/${userSlug}/${menu}_${sessionId}.json`;
+              await env.Enco.delete(detailKey);
+
+              const indexKey = `logs/${userSlug}/${menu}_sessions.json`;
+              try {
+                const existing = await env.Enco.get(indexKey);
+                if (existing) {
+                  let list = JSON.parse(await existing.text()) || [];
+                  list = list.filter(s => s.id !== sessionId);
+                  await env.Enco.put(indexKey, JSON.stringify(list), { httpMetadata: { contentType: 'application/json' } });
+                }
+              } catch (_) { }
+            }
+          }
+
+          if (env.DB && sessionId) {
+            try {
+              await env.DB.prepare('DELETE FROM enco_logs WHERE session_id = ?').bind(sessionId).run();
+            } catch (_) { }
+          }
+
+          return new Response(JSON.stringify({ success: true, message: 'Sesi log berhasil dihapus dari R2' }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // ====================================================================
+      // 10. BOT QUEUE API (ANTREAN OTOMASI BOT ENCO - CKG UMUM & SEKOLAH)
+      // ====================================================================
+
+      // 10A. GET /api/enco/queue (Ambil Antrean untuk Bot ENCO & Tampilan Web - Difilter Per Akun Petugas)
+      if (url.pathname === '/api/enco/queue' && request.method === 'GET') {
+        try {
+          const jenis = (url.searchParams.get('jenis') || '').trim().toUpperCase();
+          const status = (url.searchParams.get('status') || '').trim().toLowerCase();
+          const search = (url.searchParams.get('search') || '').trim().toLowerCase();
+          const limit = parseInt(url.searchParams.get('limit') || '1000', 10);
+          const petugas = (url.searchParams.get('petugas') || '').trim();
+
+          let query = 'SELECT * FROM enco_bot_queue';
+          const conditions = [];
+          const params = [];
+
+          if (jenis && (jenis === 'UMUM' || jenis === 'SEKOLAH')) {
+            conditions.push('jenis = ?');
+            params.push(jenis);
+          }
+
+          if (petugas) {
+            conditions.push('(LOWER(TRIM(petugas_antrean)) = LOWER(TRIM(?)) OR (petugas_antrean IN ("", "Petugas") AND LOWER(?) LIKE "%fauzie%"))');
+            params.push(petugas, petugas);
+          }
+
+          if (status === 'antre') {
+            conditions.push("((status_pendaftaran = 'antre' OR status_pelayanan = 'antre') AND status_pelayanan NOT IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened'))");
+          } else if (status === 'selesai') {
+            conditions.push("(status_pelayanan IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened'))");
+          } else if (status === 'pendaftaran') {
+            conditions.push("status_pendaftaran = 'antre'");
+          } else if (status === 'pelayanan') {
+            conditions.push("status_pelayanan = 'antre' AND status_pelayanan NOT IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened')");
+          }
+
+          if (search) {
+            conditions.push('(LOWER(nama) LIKE ? OR nik LIKE ?)');
+            params.push('%' + search + '%', '%' + search + '%');
+          }
+
+          if (conditions.length > 0) {
+            query += ' WHERE ' + conditions.join(' AND ');
+          }
+
+          query += ' ORDER BY created_at DESC LIMIT ?';
+          params.push(limit);
+
+          const { results } = await env.DB.prepare(query).bind(...params).all();
+
+          // Summary counts (juga difilter per akun petugas jika parameter petugas diberikan)
+          let countQuery = `
+            SELECT 
+              COUNT(*) as total,
+              SUM(CASE WHEN jenis = 'UMUM' THEN 1 ELSE 0 END) as total_umum,
+              SUM(CASE WHEN jenis = 'SEKOLAH' THEN 1 ELSE 0 END) as total_sekolah,
+              SUM(CASE WHEN (status_pendaftaran = 'antre' OR status_pelayanan = 'antre') AND status_pelayanan NOT IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened') THEN 1 ELSE 0 END) as antre,
+              SUM(CASE WHEN status_pendaftaran = 'antre' THEN 1 ELSE 0 END) as antre_pendaftaran,
+              SUM(CASE WHEN status_pelayanan = 'antre' AND status_pelayanan NOT IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened') THEN 1 ELSE 0 END) as antre_pelayanan,
+              SUM(CASE WHEN status_pendaftaran = 'berhasil' OR status_pendaftaran LIKE '%Terdaftar%' THEN 1 ELSE 0 END) as terdaftar,
+              SUM(CASE WHEN status_pelayanan = 'selesai' OR status_pelayanan = 'Selesai Pelayanan' THEN 1 ELSE 0 END) as selesai,
+              SUM(CASE WHEN status_pelayanan = 'Pernah Input' OR status_pelayanan = 'already-screened' OR keterangan LIKE '%Pernah%' THEN 1 ELSE 0 END) as pernah_input,
+              SUM(CASE WHEN status_pendaftaran = 'gagal' THEN 1 ELSE 0 END) as gagal
+            FROM enco_bot_queue
+          `;
+          const countParams = [];
+          if (petugas) {
+            countQuery += ' WHERE (LOWER(TRIM(petugas_antrean)) = LOWER(TRIM(?)) OR (petugas_antrean IN ("", "Petugas") AND LOWER(?) LIKE "%fauzie%"))';
+            countParams.push(petugas, petugas);
+          }
+          const summaryRes = countParams.length > 0
+            ? await env.DB.prepare(countQuery).bind(...countParams).first()
+            : await env.DB.prepare(countQuery).first();
+
+          const formattedList = (results || []).map(r => {
+            let parsedData = {};
+            try {
+              parsedData = r.data_json ? JSON.parse(r.data_json) : {};
+            } catch (_) { }
+            return {
+              id: r.id,
+              jenis: r.jenis,
+              record_id: r.record_id,
+              nik: r.nik,
+              nama: r.nama,
+              status_pendaftaran: r.status_pendaftaran,
+              status_pelayanan: r.status_pelayanan,
+              no_tiket: r.no_tiket || '',
+              keterangan: r.keterangan || '',
+              petugas_antrean: r.petugas_antrean || '',
+              created_at: r.created_at,
+              updated_at: r.updated_at,
+              data: parsedData
+            };
+          });
+
+          return new Response(JSON.stringify({
+            success: true,
+            total: formattedList.length,
+            summary: summaryRes || {},
+            data: formattedList
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 10B. POST /api/enco/queue (Tambah / Simpan Antrean Bot ENCO)
+      if (url.pathname === '/api/enco/queue' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const jenis = (body.jenis || 'UMUM').trim().toUpperCase();
+          const petugas = (body.petugas || 'Petugas').trim();
+          const items = Array.isArray(body.items) ? body.items : (body.item ? [body.item] : (Array.isArray(body) ? body : [body]));
+
+          if (!items || items.length === 0) {
+            return new Response(JSON.stringify({ success: false, error: 'Tidak ada data pasien yang dikirim untuk antrean' }), { status: 400, headers: corsHeaders });
+          }
+
+          let insertedCount = 0;
+          const nowStr = new Date().toISOString();
+
+          for (const item of items) {
+            const rawNik = String(item.nik || item.NIK || item.nik_pasien || '').replace(/\D/g, '').trim();
+            const rawNama = String(item.nama || item.NAMA || item.nama_pasien || item.name || '').trim();
+            if (!rawNik && !rawNama) continue;
+
+            const recordId = String(item.id || item.record_id || ('REC-' + Date.now() + '-' + Math.floor(Math.random() * 1000)));
+            const cleanPetugasSlug = (petugas || 'Petugas').toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 30);
+            const queueId = 'Q-' + jenis + '-' + cleanPetugasSlug + '-' + (rawNik || recordId);
+
+            // Standarisasi field JSON yang kompatibel dengan semua pembacaan di Bot ENCO
+            const cleanData = {
+              ...item,
+              nik: rawNik,
+              NIK: rawNik,
+              nama: rawNama,
+              NAMA: rawNama,
+              name: rawNama,
+              tanggallahir: item.tanggallahir || item.tanggal_lahir || item.dob || item['TANGGAL LAHIR'] || '1990-01-01',
+              tanggal_lahir: item.tanggal_lahir || item.tanggallahir || item.dob || item['TANGGAL LAHIR'] || '1990-01-01',
+              jeniskelamin: (item.jeniskelamin || item.jenis_kelamin || item.jk || item['JENIS KELAMIN'] || 'L').toString().toUpperCase().startsWith('P') ? 'P' : 'L',
+              jenis_kelamin: (item.jenis_kelamin || item.jeniskelamin || item.jk || item['JENIS KELAMIN'] || 'L').toString().toUpperCase().startsWith('P') ? 'P' : 'L',
+              nowhatsapp: item.nowhatsapp || item.no_whatsapp || item.wa || item['NO WHATSAPP'] || '081234567890',
+              wa: item.wa || item.nowhatsapp || item.no_whatsapp || item['NO WHATSAPP'] || '081234567890',
+              status_pernikahan: item.status_pernikahan || item.statuspernikahan || item['STATUS PERNIKAHAN'] || 'MENIKAH',
+              provinsi: item.provinsi || item.province || item['PROVINSI'] || 'JAWA BARAT',
+              kab_kota: item.kab_kota || item.kabkota || item.kota || item['KAB/KOTA'] || 'KAB. BANDUNG',
+              kecamatan: item.kecamatan || item.district || item['KECAMATAN'] || 'BANJARAN',
+              kelurahan: item.kelurahan || item.desa || item['KELURAHAN'] || 'BANJARAN KOTA',
+              alamat: item.alamat || item.detailalamat || item['ALAMAT'] || 'BANJARAN',
+              pekerjaan: item.pekerjaan || item.job || item['PEKERJAAN'] || 'Lainnya',
+              bb: item.bb !== undefined && item.bb !== null ? item.bb : 60,
+              tb: item.tb !== undefined && item.tb !== null ? item.tb : 165,
+              lp: item.lp !== undefined && item.lp !== null ? item.lp : 80,
+              td_sistolik: item.td_sistolik || item.sistol || item['TD SISTOLIK'] || 120,
+              td_diastolik: item.td_diastolik || item.diastol || item['TD DIASTOLIK'] || 80,
+              gula_darah: item.gula_darah || item.gula || item['GULA DARAH'] || 100,
+              hb: item.hb || item['HB'] || '12.5',
+              kolesterol: item.kolesterol || item['KOLESTEROL'] || '180',
+              merokok: item.merokok || item['MEROKOK'] || 'Tidak',
+              telinga: item.telinga || item['TELINGA'] || 'Normal',
+              mata: item.mata || item['MATA'] || 'Normal',
+              gigi: item.gigi || item['GIGI'] || 'Normal',
+              katarak: item.katarak || item['KATARAK'] || 'Normal',
+              kacamata: item.kacamata || item['KACAMATA'] || 'Tidak',
+              kebugaran: item.kebugaran || item['KEBUGARAN'] || 'Baik',
+              sekolah: item.sekolah || item['SEKOLAH'] || '',
+              kelas: item.kelas || item['KELAS'] || ''
+            };
+
+            await env.DB.prepare(`
+              INSERT INTO enco_bot_queue (
+                id, jenis, record_id, nik, nama, data_json,
+                status_pendaftaran, status_pelayanan, no_tiket, keterangan, petugas_antrean,
+                created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, 'antre', 'antre', ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                jenis = excluded.jenis,
+                record_id = excluded.record_id,
+                nama = excluded.nama,
+                data_json = excluded.data_json,
+                petugas_antrean = excluded.petugas_antrean,
+                updated_at = excluded.updated_at
+            `).bind(
+              queueId,
+              jenis,
+              recordId,
+              rawNik,
+              rawNama,
+              JSON.stringify(cleanData),
+              cleanData.no_tiket || '',
+              cleanData.keterangan || '',
+              petugas,
+              nowStr,
+              nowStr
+            ).run();
+
+            // Tandai status di tabel sumber (ckg_gratis_records)
+            if (jenis === 'UMUM' && recordId) {
+              try {
+                const srcRow = await env.DB.prepare('SELECT raw_json FROM ckg_gratis_records WHERE id = ?').bind(recordId).first();
+                if (srcRow && srcRow.raw_json) {
+                  let rJson = JSON.parse(srcRow.raw_json);
+                  rJson.in_bot_queue = 1;
+                  rJson.bot_queue_date = nowStr;
+                  await env.DB.prepare('UPDATE ckg_gratis_records SET raw_json = ? WHERE id = ?').bind(JSON.stringify(rJson), recordId).run();
+                }
+              } catch (_) { }
+            }
+
+            insertedCount++;
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            count: insertedCount,
+            message: 'Berhasil menambahkan ' + insertedCount + ' pasien ke antrean Bot ENCO (' + jenis + ')'
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 10C. POST /api/enco/queue/remove & DELETE /api/enco/queue (Hapus dari Antrean)
+      if ((url.pathname === '/api/enco/queue/remove' && request.method === 'POST') ||
+        (url.pathname === '/api/enco/queue' && (request.method === 'DELETE' || request.method === 'POST'))) {
+        try {
+          let body = {};
+          if (request.method === 'POST') {
+            try { body = await request.json(); } catch (_) { }
+          }
+          const id = url.searchParams.get('id') || body.id;
+          const ids = body.ids || (id ? [id] : []);
+          const clearCompleted = url.searchParams.get('clear_completed') === 'true' || body.clear_completed === true;
+          const clearAll = url.searchParams.get('clear_all') === 'true' || body.clear_all === true;
+          const jenis = (url.searchParams.get('jenis') || body.jenis || '').trim().toUpperCase();
+          const petugas = (url.searchParams.get('petugas') || body.petugas || '').trim();
+
+          let deletedCount = 0;
+
+          if (clearCompleted) {
+            let sql = "DELETE FROM enco_bot_queue WHERE (status_pelayanan IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened') OR (status_pendaftaran IN ('berhasil', 'Sudah Terdaftar') AND status_pelayanan IN ('selesai', 'Selesai Pelayanan', 'Pernah Input', 'already-screened')))";
+            const delParams = [];
+            if (jenis) {
+              sql += " AND jenis = ?";
+              delParams.push(jenis);
+            }
+            if (petugas) {
+              sql += " AND (LOWER(TRIM(petugas_antrean)) = LOWER(TRIM(?)) OR (petugas_antrean IN ('', 'Petugas') AND LOWER(?) LIKE '%fauzie%'))";
+              delParams.push(petugas, petugas);
+            }
+            const delRes = delParams.length > 0
+              ? await env.DB.prepare(sql).bind(...delParams).run()
+              : await env.DB.prepare(sql).run();
+            deletedCount = delRes.meta?.changes || 0;
+          } else if (clearAll && jenis) {
+            let sql = 'DELETE FROM enco_bot_queue WHERE jenis = ?';
+            const delParams = [jenis];
+            if (petugas) {
+              sql += " AND (LOWER(TRIM(petugas_antrean)) = LOWER(TRIM(?)) OR (petugas_antrean IN ('', 'Petugas') AND LOWER(?) LIKE '%fauzie%'))";
+              delParams.push(petugas, petugas);
+            }
+            const delRes = await env.DB.prepare(sql).bind(...delParams).run();
+            deletedCount = delRes.meta?.changes || 0;
+          } else if (ids.length > 0) {
+            for (const itemI of ids) {
+              const delRes = await env.DB.prepare('DELETE FROM enco_bot_queue WHERE id = ? OR nik = ?').bind(itemI, itemI).run();
+              deletedCount += (delRes.meta?.changes || 1);
+            }
+          }
+
+          return new Response(JSON.stringify({
+            success: true,
+            deleted: deletedCount,
+            message: 'Berhasil menghapus ' + deletedCount + ' data dari antrean Bot'
+          }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+      // 10D. POST /api/enco/queue/update-status (Update Status Eksekusi Bot ENCO secara Realtime)
+      if (url.pathname === '/api/enco/queue/update-status' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const cleanNik = String(body.nik || '').replace(/\D/g, '').trim();
+          if (!cleanNik) {
+            return new Response(JSON.stringify({ success: false, error: 'NIK dibutuhkan' }), { status: 400, headers: corsHeaders });
+          }
+
+          const queueId = (body.queue_id || body.id || '').trim();
+          const petugas = (body.petugas || '').trim();
+          const statusReg = body.status_pendaftaran || null;
+          const statusPel = body.status_pelayanan || null;
+          const noTiket = (body.no_tiket || '').trim();
+          const keterangan = (body.keterangan || '').trim();
+          const nowStr = new Date().toISOString();
+          const todayDate = nowStr.split('T')[0];
+
+          // 1. Update di enco_bot_queue
+          const setClauses = ['updated_at = ?'];
+          const setParams = [nowStr];
+
+          if (statusReg) {
+            setClauses.push('status_pendaftaran = ?');
+            setParams.push(statusReg);
+          }
+          if (statusPel) {
+            setClauses.push('status_pelayanan = ?');
+            setParams.push(statusPel);
+          }
+          if (noTiket) {
+            setClauses.push('no_tiket = ?');
+            setParams.push(noTiket);
+          }
+          if (keterangan) {
+            setClauses.push('keterangan = ?');
+            setParams.push(keterangan);
+          }
+
+          let updateSql = 'UPDATE enco_bot_queue SET ' + setClauses.join(', ');
+          if (queueId) {
+            updateSql += ' WHERE id = ?';
+            setParams.push(queueId);
+          } else {
+            updateSql += ' WHERE nik = ?';
+            setParams.push(cleanNik);
+            if (petugas && petugas !== 'Petugas ENCO') {
+              updateSql += ' AND (LOWER(TRIM(petugas_antrean)) = LOWER(TRIM(?)) OR petugas_antrean IN ("", "Petugas"))';
+              setParams.push(petugas);
+            }
+          }
+          await env.DB.prepare(updateSql).bind(...setParams).run();
+
+          // 2. Refleksikan update ke ckg_gratis_records jika ada
+          try {
+            const gratisRow = await env.DB.prepare('SELECT id, raw_json FROM ckg_gratis_records WHERE TRIM(nik) = ?').bind(cleanNik).first();
+            if (gratisRow && gratisRow.raw_json) {
+              let parsedG = JSON.parse(gratisRow.raw_json);
+              if (statusReg) parsedG.status_pendaftaran = (statusReg === 'berhasil' ? 'Sudah Terdaftar' : statusReg);
+              if (statusPel) parsedG.status_pelayanan = (statusPel === 'selesai' ? 'Selesai Pelayanan' : statusPel);
+              if (noTiket) parsedG.no_tiket = noTiket;
+              if (statusReg === 'berhasil' || statusReg === 'Sudah Terdaftar' || statusPel === 'selesai' || statusPel === 'Selesai Pelayanan' || statusPel === 'Pernah Input' || statusPel === 'already-screened') {
+                parsedG.is_bank_data = 1;
+                parsedG.from_bank_data = 1;
+              }
+              parsedG.updated_from_bot = nowStr;
+              await env.DB.prepare('UPDATE ckg_gratis_records SET raw_json = ? WHERE id = ?').bind(JSON.stringify(parsedG), gratisRow.id).run();
+            }
+          } catch (_) { }
+
+          // 3. Catat juga ke enco_pasien jika pendaftaran sukses
+          if (statusReg === 'berhasil' || statusReg === 'Sudah Terdaftar') {
+            try {
+              const queueItem = await env.DB.prepare('SELECT * FROM enco_bot_queue WHERE nik = ?').bind(cleanNik).first();
+              let pData = {};
+              if (queueItem && queueItem.data_json) {
+                try { pData = JSON.parse(queueItem.data_json); } catch (_) { }
+              }
+
+              await env.DB.prepare(`
+                INSERT INTO enco_pasien (
+                  id, nik, nama, tanggal_lahir, jenis_kelamin, status_pernikahan,
+                  pekerjaan, provinsi, kab_kota, kecamatan, kelurahan, alamat,
+                  no_tiket, kategori, status_pendaftaran, status_pelayanan,
+                  tanggal_daftar, tanggal_pelayanan, petugas_enco, faskes,
+                  raw_details, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(nik) DO UPDATE SET
+                  nama = excluded.nama,
+                  no_tiket = COALESCE(NULLIF(excluded.no_tiket, ''), enco_pasien.no_tiket),
+                  status_pendaftaran = excluded.status_pendaftaran,
+                  status_pelayanan = CASE WHEN excluded.status_pelayanan != 'Belum Pelayanan' THEN excluded.status_pelayanan ELSE enco_pasien.status_pelayanan END,
+                  tanggal_pelayanan = CASE WHEN excluded.status_pelayanan = 'Selesai Pelayanan' THEN excluded.tanggal_pelayanan ELSE enco_pasien.tanggal_pelayanan END,
+                  updated_at = excluded.updated_at
+              `).bind(
+                'ENCO-' + cleanNik,
+                cleanNik,
+                queueItem?.nama || pData.nama || 'Pasien',
+                pData.tanggal_lahir || pData.tanggallahir || '1990-01-01',
+                pData.jenis_kelamin || pData.jeniskelamin || 'L',
+                pData.status_pernikahan || 'MENIKAH',
+                pData.pekerjaan || 'Lainnya',
+                pData.provinsi || 'Jawa Barat',
+                pData.kab_kota || 'Kab. Bandung',
+                pData.kecamatan || 'Banjaran',
+                pData.kelurahan || 'Banjaran Kota',
+                pData.alamat || 'Banjaran',
+                noTiket || queueItem?.no_tiket || '',
+                queueItem?.jenis || 'Umum',
+                'Sudah Terdaftar',
+                (statusPel === 'selesai' || statusPel === 'Selesai Pelayanan') ? 'Selesai Pelayanan' : 'Belum Pelayanan',
+                todayDate,
+                (statusPel === 'selesai' || statusPel === 'Selesai Pelayanan') ? todayDate : '',
+                body.petugas || queueItem?.petugas_antrean || 'Petugas ENCO',
+                'Puskesmas Banjaran Kota',
+                JSON.stringify(pData),
+                nowStr,
+                nowStr
+              ).run();
+            } catch (_) { }
+          }
+
+          return new Response(JSON.stringify({ success: true, message: 'Status antrean berhasil diperbarui' }), { headers: corsHeaders });
+        } catch (err) {
+          return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+        }
+      }
+
+    }
+
+    // Serve static assets via Cloudflare Assets
+    if (env.ASSETS) {
+      return env.ASSETS.fetch(request);
+    }
+
+    return new Response('Not Found', { status: 404 });
+  }
+};
