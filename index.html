@@ -765,7 +765,7 @@
             <p>Silakan pilih Nama Pegawai Anda untuk masuk ke sistem CKG.</p>
           </div>
 
-          <form id="loginForm" class="login-form">
+          <form id="loginForm" onsubmit="event.preventDefault(); handleLogin(event); return false;" class="login-form">
 
             <div class="form-group">
               <label class="form-label" for="loginPegawaiSelect">Pilih Nama Pegawai <span
@@ -805,7 +805,7 @@
             </div>
 
             <!-- Primary CTA Button -->
-            <button type="submit" class="btn btn-primary" id="btnLoginSubmit"
+            <button type="submit" class="btn btn-primary" id="btnLoginSubmit" onclick="event.preventDefault(); handleLogin(event);"
               style="height: 48px; font-size: 14.5px; border-radius: var(--radius-md); font-weight: 800; background: linear-gradient(135deg, #0284c7, #2563eb); margin-top: 6px;">
               Masuk Aplikasi <i class="bi bi-box-arrow-in-right" style="font-size: 16px;"></i>
             </button>

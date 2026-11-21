@@ -29,17 +29,19 @@
     const role = (sessionStorage.getItem('ckg_user_role') || (typeof currentRole !== 'undefined' ? currentRole : 'Petugas')).toLowerCase();
     const portalType = (sessionStorage.getItem('ckg_portal_type') || 'puskesmas').toLowerCase();
 
-    // Admin selalu punya hak akses penuh ke seluruh menu
-    if (role === 'admin') return true;
-
     // Ambil konfigurasi menu terkini
     const config = (typeof currentMenuConfig !== 'undefined' && Array.isArray(currentMenuConfig) && currentMenuConfig.length > 0)
       ? currentMenuConfig
       : (typeof DEFAULT_MENU_CONFIG !== 'undefined' ? DEFAULT_MENU_CONFIG : []);
 
     const item = config.find(m => m.id === menuId);
+    // Menu yang dinonaktifkan TIDAK boleh tampil untuk siapapun (termasuk Admin)
+    if (item && item.enabled === false) return false;
+
+    // Admin selalu punya hak akses penuh ke seluruh menu yang aktif
+    if (role === 'admin') return true;
+
     if (!item) return false;
-    if (item.enabled === false) return false;
 
     const permittedRoles = item.roles || item.defaultRoles || [];
 
@@ -199,7 +201,13 @@
       }
 
       const allowed = window.isMenuAllowedForCurrentRole(viewId);
-      btn.style.display = allowed ? 'flex' : 'none';
+      if (allowed) {
+        btn.style.setProperty('display', 'flex', 'important');
+        btn.classList.remove('menu-disabled-hidden');
+      } else {
+        btn.style.setProperty('display', 'none', 'important');
+        btn.classList.add('menu-disabled-hidden');
+      }
     });
 
     // Tombol Scan OCR tengah

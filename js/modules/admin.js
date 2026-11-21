@@ -121,16 +121,23 @@ function applyMenuConfiguration() {
       }
 
       if (item.enabled === false) {
-        btn.style.display = 'none';
+        btn.style.setProperty('display', 'none', 'important');
+        btn.classList.add('menu-disabled-hidden');
         btn.style.opacity = '0.55';
         btn.title = `${item.label} (Dinonaktifkan)`;
         return;
       } else {
+        btn.classList.remove('menu-disabled-hidden');
         btn.style.opacity = '1';
         btn.title = item.label;
       }
 
-      btn.style.display = isAllowed ? 'inline-flex' : 'none';
+      if (isAllowed) {
+        btn.style.setProperty('display', 'inline-flex', 'important');
+        btn.classList.remove('menu-disabled-hidden');
+      } else {
+        btn.style.setProperty('display', 'none', 'important');
+      }
     }
   });
 
@@ -140,8 +147,10 @@ function applyMenuConfiguration() {
   }
 
   const activeBtn = navBar.querySelector('.nav-tab-btn.active');
-  if (activeBtn && activeBtn.style.display === 'none') {
-    const firstVisible = Array.from(navBar.querySelectorAll('.nav-tab-btn:not(.btn-kelola-menu-quick)')).find(b => b.style.display !== 'none');
+  if (activeBtn && (activeBtn.style.display === 'none' || activeBtn.classList.contains('menu-disabled-hidden'))) {
+    const firstVisible = Array.from(navBar.querySelectorAll('.nav-tab-btn:not(.btn-kelola-menu-quick)')).find(b => 
+      b.style.display !== 'none' && !b.classList.contains('menu-disabled-hidden')
+    );
     if (firstVisible) {
       const targetView = firstVisible.getAttribute('data-view');
       if (targetView) switchView(targetView);
@@ -298,10 +307,10 @@ function toggleMenuStatus(id) {
   const item = currentMenuConfig.find(m => m.id === id);
   if (!item) return;
   item.enabled = !item.enabled;
+  try { localStorage.setItem('ckg_menu_config', JSON.stringify(currentMenuConfig)); } catch (_) { }
   applyMenuConfiguration();
   renderAdminMenuTable();
   renderModalMenuTable();
-  try { localStorage.setItem('ckg_menu_config', JSON.stringify(currentMenuConfig)); } catch (_) { }
   showToast(`Menu ${item.label} berhasil ${item.enabled ? 'diaktifkan' : 'dinonaktifkan'}!`, 'info');
 }
 
@@ -454,6 +463,9 @@ function closeMenuConfigModal() {
 
 window.openMenuConfigModal = openMenuConfigModal;
 window.closeMenuConfigModal = closeMenuConfigModal;
+window.applyMenuConfiguration = applyMenuConfiguration;
+window.loadLocalMenuConfig = loadLocalMenuConfig;
+window.syncMenuConfigFromCloud = syncMenuConfigFromCloud;
 window.moveMenuPosition = moveMenuPosition;
 window.toggleMenuStatus = toggleMenuStatus;
 window.toggleMenuRolePermission = toggleMenuRolePermission;

@@ -726,7 +726,8 @@ function hideLoadingOverlay() {
    ========================================================================== */
 
 function handleLogin(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
+  if (e && e.stopPropagation) e.stopPropagation();
   const selectEl = document.getElementById('loginPegawaiSelect');
 
   if (!selectEl || !selectEl.value) {
@@ -2853,3 +2854,4 @@ if (typeof clearSearchInputLoginSekolah === 'function') window.clearSearchInputL
 if (typeof selectLoginSekolahOption === 'function') window.selectLoginSekolahOption = selectLoginSekolahOption;
 if (typeof clearLoginSekolahSelection === 'function') window.clearLoginSekolahSelection = clearLoginSekolahSelection;
 if (typeof handleSekolahLogin === 'function') window.handleSekolahLogin = handleSekolahLogin;
+if (typeof handleLogin === 'function') window.handleLogin = handleLogin;

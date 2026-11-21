@@ -574,6 +574,17 @@ body {
   font-size: 15px;
 }
 
+/* Strict enforcement: Hidden disabled menus */
+.nav-tab-btn.menu-disabled-hidden,
+.apk-nav-btn.menu-disabled-hidden,
+.apk-sidebar-item.menu-disabled-hidden,
+.nav-tab-btn[style*="display: none"],
+.apk-nav-btn[style*="display: none"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* Main Container Area */
 .main-content {
   padding: 24px 28px;
