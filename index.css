@@ -2257,33 +2257,36 @@ body:not(.swal2-shown) .swal2-container {
    ✨ PREMIUM & STYLISH SWEETALERT2 MODAL CUSTOM THEME
    ========================================================================== */
 
-/* Modal Backdrop Overlay (Only for standard dialog modals, NOT toasts) */
-.swal2-container.swal2-backdrop-show:not(.swal2-toast-container):not(.swal2-top-end) {
+/* Modal Backdrop Overlay (Only for standard dialog modals, NEVER for toasts) */
+body:not(.swal2-toast-shown) .swal2-container.swal2-backdrop-show:not(.swal2-toast-container):not(.swal2-top-end):not(.swal2-bottom-end):not(.swal2-top-start):not(.swal2-bottom-start) {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   background: rgba(15, 23, 42, 0.45) !important;
 }
 
-/* Toast Notifications Container (Remove dark gray background & blur overlay) */
+/* Toast Notifications Container (Completely transparent & zero interference) */
+body.swal2-toast-shown .swal2-container,
 .swal2-container.swal2-toast-container,
-.swal2-container.swal2-top-end,
-.swal2-container.swal2-top-start,
 .swal2-container.swal2-bottom-end,
 .swal2-container.swal2-bottom-start,
-body.swal2-toast-shown .swal2-container {
+.swal2-container.swal2-top-end,
+.swal2-container.swal2-top-start {
   background: transparent !important;
   background-color: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   pointer-events: none !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
 }
 
 .swal2-toast {
   pointer-events: auto !important;
 }
 
-.swal2-popup {
+.swal2-popup:not(.swal2-toast) {
   border-radius: 24px !important;
   padding: 32px 28px 28px 28px !important;
   background: #ffffff !important;
@@ -2427,24 +2430,57 @@ body.swal2-toast-shown .swal2-container {
 }
 
 /* Toast Notifications Custom Styling */
+.swal2-popup.swal2-toast,
 .swal2-toast {
-  border-radius: 16px !important;
-  padding: 12px 18px !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
   background: #ffffff !important;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(226, 232, 240, 0.9) !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
+  overflow: hidden !important;
+  width: auto !important;
+  max-width: 340px !important;
+  box-sizing: border-box !important;
+  margin: 0 16px 16px 0 !important;
 }
 
+.swal2-popup.swal2-toast::-webkit-scrollbar,
+.swal2-toast::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.swal2-popup.swal2-toast .swal2-title,
 .swal2-toast .swal2-title {
-  font-size: 13.5px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
   color: #0f172a !important;
   margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
+.swal2-popup.swal2-toast .swal2-icon,
 .swal2-toast .swal2-icon {
-  margin: 0 10px 0 0 !important;
-  scale: 0.95;
+  margin: 0 8px 0 0 !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  font-size: 11px !important;
+  border-width: 1.5px !important;
+  flex-shrink: 0 !important;
+  align-self: center !important;
+}
+
+.swal2-popup.swal2-toast .swal2-timer-progress-bar,
+.swal2-toast .swal2-timer-progress-bar {
+  height: 2.5px !important;
+  bottom: 0 !important;
+  background: #059669 !important;
 }
 
 /* Inputs, Selects & Textareas inside Swal Modals */
@@ -3787,22 +3823,26 @@ body.dark-mode .custom-swal-cancel:hover {
 }
 
 /* SweetAlert2 Toast Notifications in Dark Mode */
+body.dark-mode .swal2-popup.swal2-toast,
 body.dark-mode .swal2-toast {
   background: #1e293b !important;
   border: 1px solid #334155 !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(51, 65, 85, 0.8) !important;
 }
 
+body.dark-mode .swal2-popup.swal2-toast .swal2-title,
 body.dark-mode .swal2-toast .swal2-title {
   color: #f8fafc !important;
 }
 
+body.dark-mode .swal2-popup.swal2-toast .swal2-html-container,
 body.dark-mode .swal2-toast .swal2-html-container {
   color: #cbd5e1 !important;
 }
 
-body.dark-mode .swal2-timer-progress-bar {
-  background: #3b82f6 !important;
+body.dark-mode .swal2-popup.swal2-toast .swal2-timer-progress-bar,
+body.dark-mode .swal2-toast .swal2-timer-progress-bar {
+  background: #10b981 !important;
 }
 
 /* Custom Standard Toasts in Dark Mode */

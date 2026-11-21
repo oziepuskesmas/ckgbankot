@@ -206,7 +206,9 @@ function showToast(message, type = 'info') {
       toast: true,
       position: 'bottom-end',
       showConfirmButton: false,
-      timer: 2500,
+      showCloseButton: false,
+      backdrop: false,
+      timer: 2200,
       timerProgressBar: true,
       background: isDark ? '#1e293b' : '#ffffff',
       color: isDark ? '#f8fafc' : '#0f172a',
@@ -301,7 +303,7 @@ function toggleDarkMode() {
     }
   }
 
-  showToast(isDark ? '🌙 Mode Gelap Diaktifkan' : '☀️ Mode Terang Diaktifkan', 'info');
+  showToast(isDark ? 'Mode Gelap Diaktifkan' : 'Mode Terang Diaktifkan', 'success');
 }
 
 function updateThemeToggleUI(isDark) {
