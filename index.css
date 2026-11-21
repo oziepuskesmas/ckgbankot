@@ -6844,20 +6844,34 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   top: 0; left: 0; width: 100vw; height: 100vh;
   background-color: #f8fafc;
   background-image: 
-    radial-gradient(at 0% 0%, #ecfdf5 0px, transparent 45%),
-    radial-gradient(at 100% 0%, #eff6ff 0px, transparent 45%),
-    radial-gradient(at 50% 100%, #f0fdf4 0px, transparent 50%);
+    radial-gradient(at 0% 0%, #ecfdf5 0px, transparent 48%),
+    radial-gradient(at 100% 0%, #eff6ff 0px, transparent 48%),
+    radial-gradient(at 50% 100%, #f0fdf4 0px, transparent 52%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   z-index: 9998;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 24px;
+  padding: 18px 24px 16px 24px;
   color: #0f172a;
   transition: opacity 0.35s ease, visibility 0.35s ease, background-color 0.3s ease;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   box-sizing: border-box;
+}
+
+.portal-gate-container::-webkit-scrollbar {
+  width: 6px;
+}
+.portal-gate-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.portal-gate-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.portal-gate-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .portal-gate-container.hidden {
@@ -6883,30 +6897,30 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 }
 
 .ambient-orb-emerald {
-  width: 500px;
-  height: 500px;
-  top: -100px;
+  width: 540px;
+  height: 540px;
+  top: -120px;
   left: -100px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.16) 0%, rgba(52, 211, 153, 0.05) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(52, 211, 153, 0.06) 60%, transparent 80%);
   animation: orbFloatEmerald 22s ease-in-out infinite alternate;
 }
 
 .ambient-orb-blue {
-  width: 520px;
-  height: 520px;
-  bottom: -120px;
+  width: 560px;
+  height: 560px;
+  bottom: -140px;
   right: -120px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(147, 197, 253, 0.04) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(147, 197, 253, 0.05) 60%, transparent 80%);
   animation: orbFloatBlue 26s ease-in-out infinite alternate;
 }
 
 .ambient-orb-rose {
-  width: 380px;
-  height: 380px;
-  top: 40%;
+  width: 420px;
+  height: 420px;
+  top: 42%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.09) 0%, transparent 70%);
   animation: orbFloatRose 20s ease-in-out infinite alternate;
 }
 
@@ -6931,14 +6945,14 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 .portal-tech-grid {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(rgba(15, 23, 42, 0.06) 1.2px, transparent 1.2px);
   background-size: 28px 28px;
-  mask-image: radial-gradient(circle at center, black 45%, transparent 85%);
-  -webkit-mask-image: radial-gradient(circle at center, black 45%, transparent 85%);
-  opacity: 0.7;
+  mask-image: radial-gradient(circle at center, black 50%, transparent 88%);
+  -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 88%);
+  opacity: 0.75;
 }
 
-/* Official Header Navbar Island (Clean White Medical Navbar) */
+/* Official Header Navbar Island (Clean Medical Glassmorphic Island) */
 .portal-gate-header {
   position: relative;
   z-index: 10;
@@ -6949,10 +6963,12 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   width: 100%;
   margin: 0 auto;
   padding: 10px 22px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 9999px;
-  box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
   transition: all 0.25s ease;
 }
 
@@ -6969,6 +6985,11 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.25s ease;
+}
+
+.portal-brand-logo-wrap:hover {
+  transform: scale(1.05);
 }
 
 .portal-brand-logo-wrap img {
@@ -7038,6 +7059,7 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   font-weight: 700;
   padding: 5px 13px;
   border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.08);
 }
 
 .portal-status-badge {
@@ -7068,6 +7090,40 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
+.portal-header-apk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.portal-header-apk-btn i {
+  color: #10b981;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.portal-header-apk-btn:hover {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.15);
+}
+
+.portal-header-apk-btn:hover i {
+  transform: scale(1.15);
+}
+
 .portal-theme-toggle-btn {
   border-radius: 9999px;
   padding: 6px 14px;
@@ -7087,6 +7143,7 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   background: #f1f5f9;
   border-color: #cbd5e1;
   color: #0f172a;
+  transform: translateY(-1px);
 }
 
 /* Main Content Area */
@@ -7095,7 +7152,7 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   z-index: 10;
   max-width: 1220px;
   width: 100%;
-  margin: 12px auto;
+  margin: 10px auto;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -7120,74 +7177,103 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   font-weight: 700;
   padding: 4px 16px;
   border-radius: 9999px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   letter-spacing: 0.2px;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.06);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.08);
 }
 
-.portal-hero-tag i {
+.hero-tag-sparkle {
   color: #059669;
+  display: inline-flex;
+  align-items: center;
+  animation: sparkleTwinkle 2.5s ease-in-out infinite;
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% { opacity: 0.7; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.15) rotate(5deg); }
 }
 
 .portal-banner-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 0 auto 6px auto;
-  max-width: 360px;
+  margin: 0 auto 4px auto;
+  max-width: 380px;
   width: 100%;
 }
 
+.portal-banner-glow {
+  position: absolute;
+  width: 260px;
+  height: 90px;
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.28) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 80%);
+  filter: blur(28px);
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .portal-hero-banner {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 310px;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.08));
+  filter: drop-shadow(0 10px 22px rgba(15, 23, 42, 0.1));
   animation: floatBanner 4s ease-in-out infinite alternate;
   transition: transform 0.3s ease;
 }
 
 .portal-hero-banner:hover {
-  transform: scale(1.02);
+  transform: scale(1.03);
 }
 
 @keyframes floatBanner {
   0% { transform: translateY(0px); }
-  100% { transform: translateY(-4px); }
+  100% { transform: translateY(-5px); }
 }
 
 .portal-headline-title {
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 900;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.7px;
   margin: 0 0 4px 0;
-  color: #0f172a;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   line-height: 1.15;
 }
 
 .portal-headline-badge-wrap {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .portal-headline-instansi {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14.5px;
+  gap: 7px;
+  font-size: 14px;
   font-weight: 800;
   color: #059669;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 3px 16px;
+  padding: 3px 18px;
   border-radius: 9999px;
   letter-spacing: 0.2px;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.08);
+}
+
+.portal-headline-instansi i {
+  font-size: 15px;
 }
 
 .portal-headline-subtitle {
   font-size: 13.5px;
   color: #475569;
-  max-width: 640px;
+  max-width: 660px;
   margin: 0 auto;
   line-height: 1.55;
   font-weight: 400;
@@ -7205,13 +7291,13 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   position: relative;
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
-  border-radius: 20px;
+  border-radius: 22px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.05), 0 4px 8px -4px rgba(15, 23, 42, 0.02);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.05), 0 4px 8px -4px rgba(15, 23, 42, 0.02);
 }
 
 .card-accent-bar {
@@ -7222,37 +7308,59 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   z-index: 2;
 }
 
-.card-puskesmas .card-accent-bar { background: #059669; }
-.card-sekolah .card-accent-bar { background: #2563eb; }
-.card-posyandu .card-accent-bar { background: #e11d48; }
+.card-puskesmas .card-accent-bar { background: linear-gradient(90deg, #059669 0%, #10b981 100%); }
+.card-sekolah .card-accent-bar { background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%); }
+.card-posyandu .card-accent-bar { background: linear-gradient(90deg, #e11d48 0%, #f43f5e 100%); }
+
+.card-glow-layer {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(35px);
+  transition: opacity 0.4s ease;
+}
+
+.card-puskesmas .card-glow-layer { background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%); }
+.card-sekolah .card-glow-layer { background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, transparent 70%); }
+.card-posyandu .card-glow-layer { background: radial-gradient(circle, rgba(225, 29, 72, 0.2) 0%, transparent 70%); }
 
 .portal-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-8px);
 }
 
 .portal-card:hover .card-accent-bar {
   height: 6px;
 }
 
+.portal-card:hover .card-glow-layer {
+  opacity: 1;
+}
+
 .card-puskesmas:hover {
   border-color: #10b981;
-  box-shadow: 0 20px 30px -10px rgba(5, 150, 105, 0.16), 0 0 0 1px #10b981;
+  box-shadow: 0 24px 38px -10px rgba(5, 150, 105, 0.18), 0 0 0 1px #10b981;
 }
 
 .card-sekolah:hover {
   border-color: #3b82f6;
-  box-shadow: 0 20px 30px -10px rgba(37, 99, 235, 0.16), 0 0 0 1px #3b82f6;
+  box-shadow: 0 24px 38px -10px rgba(37, 99, 235, 0.18), 0 0 0 1px #3b82f6;
 }
 
 .card-posyandu:hover {
   border-color: #f43f5e;
-  box-shadow: 0 20px 30px -10px rgba(225, 29, 72, 0.16), 0 0 0 1px #f43f5e;
+  box-shadow: 0 24px 38px -10px rgba(225, 29, 72, 0.18), 0 0 0 1px #f43f5e;
 }
 
 .portal-card-inner {
   position: relative;
   z-index: 1;
-  padding: 24px 22px 18px 22px;
+  padding: 24px 22px 20px 22px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -7268,36 +7376,39 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 }
 
 .portal-card-icon-wrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 15px;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  transition: transform 0.3s ease;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
 }
 
 .portal-card:hover .portal-card-icon-wrap {
-  transform: scale(1.08) rotate(2deg);
+  transform: scale(1.1) rotate(3deg);
 }
 
 .card-puskesmas .portal-card-icon-wrap {
-  background: #ecfdf5;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   color: #059669;
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #a7f3d0;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.12);
 }
 
 .card-sekolah .portal-card-icon-wrap {
-  background: #eff6ff;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   color: #2563eb;
-  border: 1px solid #bfdbfe;
+  border: 1.5px solid #bfdbfe;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
 }
 
 .card-posyandu .portal-card-icon-wrap {
-  background: #fff1f2;
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
   color: #e11d48;
-  border: 1px solid #fecdd3;
+  border: 1.5px solid #fecdd3;
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.12);
 }
 
 .portal-card-pill {
@@ -7307,8 +7418,33 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   letter-spacing: 0.2px;
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-emerald {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: pulseDot 2s infinite;
+}
+
+.dot-blue {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+  animation: pulseDot 2s infinite;
+}
+
+.dot-rose {
+  background: #f43f5e;
+  box-shadow: 0 0 6px rgba(244, 63, 94, 0.6);
+  animation: pulseDot 2s infinite;
 }
 
 .pill-puskesmas {
@@ -7351,9 +7487,9 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   margin: 0 0 16px 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   border-top: 1px solid #f1f5f9;
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .portal-card-features li {
@@ -7361,13 +7497,24 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   color: #334155;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-weight: 500;
 }
 
-.card-puskesmas .portal-card-features li i { color: #059669; font-size: 13px; }
-.card-sekolah .portal-card-features li i { color: #2563eb; font-size: 13px; }
-.card-posyandu .portal-card-features li i { color: #e11d48; font-size: 13px; }
+.feat-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.card-puskesmas .feat-icon { background: #ecfdf5; color: #059669; }
+.card-sekolah .feat-icon { background: #eff6ff; color: #2563eb; }
+.card-posyandu .feat-icon { background: #fff1f2; color: #e11d48; }
 
 .portal-card-bottom {
   margin-top: auto;
@@ -7400,26 +7547,26 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 }
 
 .btn-puskesmas {
-  background: #059669;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
 }
 .btn-puskesmas:hover {
-  background: #047857;
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
   box-shadow: 0 6px 18px rgba(5, 150, 105, 0.3);
 }
 
 .btn-sekolah {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 .btn-sekolah:hover {
-  background: #1d4ed8;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
 }
 
 .btn-posyandu {
-  background: #e11d48;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
 }
 .btn-posyandu:hover {
-  background: #be123c;
+  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
   box-shadow: 0 6px 18px rgba(225, 29, 72, 0.3);
 }
 
@@ -7440,32 +7587,61 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 18px;
-  padding: 10px 20px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  padding: 10px 22px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
   margin-top: 2px;
 }
 
 .trust-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   text-align: left;
+  transition: transform 0.2s ease;
+}
+
+.trust-item:hover {
+  transform: translateY(-1px);
 }
 
 .trust-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  color: #0284c7;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.trust-icon-emerald {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+}
+
+.trust-icon-blue {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+}
+
+.trust-icon-rose {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+}
+
+.trust-icon-cyan {
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  color: #0891b2;
 }
 
 .trust-info {
@@ -7551,17 +7727,18 @@ body.dark-mode #modalPengembalianAlat .filter-control {
    DARK MODE OVERRIDES (Optional, when user toggles dark mode)
    ========================================================================== */
 body.dark-mode .portal-gate-container {
-  background-color: #0f172a;
+  background-color: #0b0f19;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.15) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(244, 63, 94, 0.08) 0px, transparent 60%);
+    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.18) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(244, 63, 94, 0.1) 0px, transparent 60%);
   color: #f8fafc;
 }
 
 body.dark-mode .portal-gate-header {
-  background: rgba(30, 41, 59, 0.85);
+  background: rgba(15, 23, 42, 0.85);
   border-color: #334155;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-mode .portal-gate-brand-title h3 {
@@ -7569,17 +7746,36 @@ body.dark-mode .portal-gate-brand-title h3 {
 }
 
 body.dark-mode .portal-headline-title {
-  color: #ffffff;
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 55%, #34d399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 body.dark-mode .portal-headline-subtitle {
   color: #cbd5e1;
 }
 
-body.dark-mode .portal-card {
+body.dark-mode .portal-header-apk-btn {
   background: #1e293b;
   border-color: #334155;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  color: #f8fafc;
+}
+body.dark-mode .portal-header-apk-btn:hover {
+  background: #0f172a;
+  border-color: #10b981;
+  color: #34d399;
+}
+
+body.dark-mode .portal-theme-toggle-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.dark-mode .portal-card {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: #334155;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-mode .portal-card-title {
@@ -7598,8 +7794,23 @@ body.dark-mode .portal-card-features li {
   color: #cbd5e1;
 }
 
+body.dark-mode .card-puskesmas:hover {
+  border-color: #10b981;
+  box-shadow: 0 24px 38px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.25);
+}
+
+body.dark-mode .card-sekolah:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 24px 38px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.25);
+}
+
+body.dark-mode .card-posyandu:hover {
+  border-color: #f43f5e;
+  box-shadow: 0 24px 38px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(225, 29, 72, 0.25);
+}
+
 body.dark-mode .portal-trust-strip {
-  background: #1e293b;
+  background: rgba(30, 41, 59, 0.85);
   border-color: #334155;
 }
 
@@ -7607,10 +7818,18 @@ body.dark-mode .trust-number {
   color: #ffffff;
 }
 
+body.dark-mode .trust-sub {
+  color: #94a3b8;
+}
+
 body.dark-mode .trust-icon {
-  background: #0f172a;
   border-color: #334155;
 }
+
+body.dark-mode .trust-icon-emerald { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); color: #34d399; }
+body.dark-mode .trust-icon-blue { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); color: #60a5fa; }
+body.dark-mode .trust-icon-rose { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); color: #fb7185; }
+body.dark-mode .trust-icon-cyan { background: rgba(8, 145, 178, 0.15); border-color: rgba(8, 145, 178, 0.3); color: #22d3ee; }
 
 body.dark-mode .trust-divider {
   background: #334155;
@@ -7645,16 +7864,18 @@ body.dark-mode .footer-badge {
   }
   .portal-cards-grid {
     grid-template-columns: 1fr;
-    max-width: 460px;
+    max-width: 480px;
     margin: 0 auto;
+    width: 100%;
   }
   .portal-headline-title {
     font-size: 26px;
   }
   .portal-trust-strip {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 14px 18px;
   }
   .trust-divider {
     display: none;
