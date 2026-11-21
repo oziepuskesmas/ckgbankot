@@ -10926,3 +10926,19 @@ body.dark-mode .apk-sidebar-update-btn span.badge,
   background: rgba(56, 189, 248, 0.2) !important;
   color: #38bdf8 !important;
 }
+/* ==========================================================================
+   FITUR INGAT SAYA (HANYA AKTIF DI NATIVE APK - WEB MOBILE TETAP STANDAR)
+   ========================================================================== */
+.apk-only-remember-wrapper {
+  display: none !important;
+}
+
+body.is-native-apk .apk-only-remember-wrapper,
+.is-native-apk .apk-only-remember-wrapper {
+  display: block !important;
+}
+
+body.dark-mode.is-native-apk .apk-only-remember-wrapper label,
+body.is-native-apk.dark-mode .apk-only-remember-wrapper label {
+  color: #cbd5e1 !important;
+}

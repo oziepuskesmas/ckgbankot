@@ -223,9 +223,28 @@
      4. FITUR "INGAT SAYA" (REMEMBER PASSWORD) KHUSUS APK ANDROID
      ========================================================================== */
 
-  // A. Hook ke Gerbang Puskesmas (openPuskesmasGate)
+  // A. Hook ke Gerbang Puskesmas (openPuskesmasGate) - KHUSUS MODE APK ANDROID
   const origOpenPuskesmasGate = window.openPuskesmasGate;
   window.openPuskesmasGate = function() {
+    const isApk = Boolean(
+      (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+      window.location.protocol === 'capacitor:' ||
+      window.location.hostname === 'localhost' ||
+      (navigator.userAgent && navigator.userAgent.includes('Capacitor')) ||
+      window.location.search.includes('apk=1') ||
+      window.location.search.includes('native=1') ||
+      (window.Capacitor && window.Capacitor.platform === 'android') ||
+      document.documentElement.classList.contains('is-native-apk') ||
+      (document.body && document.body.classList.contains('is-native-apk')) ||
+      window.IS_NATIVE_APK
+    );
+
+    // Jika bukan di mode APK (misal web mobile biasa atau desktop web), panggil fungsi bawaan web tanpa modifikasi
+    if (!isApk) {
+      if (typeof origOpenPuskesmasGate === 'function') origOpenPuskesmasGate();
+      return;
+    }
+
     const rememberedGatePass = localStorage.getItem('ckg_apk_remember_gate_pass');
 
     // Jika password gerbang sudah tersimpan, langsung buka gerbang!
@@ -238,6 +257,19 @@
         puskesmasOverlay.style.display = 'flex';
       }
       if (typeof populatePegawaiDropdown === 'function') populatePegawaiDropdown();
+
+      // Pre-select pegawai terakhir di APK jika tersimpan
+      const lastPegawai = localStorage.getItem('ckg_apk_last_pegawai');
+      if (lastPegawai) {
+        setTimeout(() => {
+          const selectEl = document.getElementById('loginPegawaiSelect');
+          if (selectEl && (!selectEl.value || selectEl.value === '')) {
+            if (typeof selectPegawaiComboboxOption === 'function') {
+              selectPegawaiComboboxOption(lastPegawai, lastPegawai);
+            }
+          }
+        }, 150);
+      }
       return;
     }
 
@@ -280,6 +312,12 @@
           return false;
         }
 
+        const targetPass = (typeof gatePasswordPuskesmas !== 'undefined' && gatePasswordPuskesmas ? gatePasswordPuskesmas : '213').trim();
+        if (passVal !== targetPass) {
+          Swal.showValidationMessage('Kata sandi gerbang puskesmas salah!');
+          return false;
+        }
+
         // Simpan jika Ingat Saya dicentang
         if (chk && chk.checked) {
           localStorage.setItem('ckg_apk_remember_gate_pass', passVal);
@@ -299,6 +337,19 @@
           puskesmasOverlay.style.display = 'flex';
         }
         if (typeof populatePegawaiDropdown === 'function') populatePegawaiDropdown();
+
+        // Pre-select pegawai terakhir di APK jika tersimpan
+        const lastPegawai = localStorage.getItem('ckg_apk_last_pegawai');
+        if (lastPegawai) {
+          setTimeout(() => {
+            const selectEl = document.getElementById('loginPegawaiSelect');
+            if (selectEl && (!selectEl.value || selectEl.value === '')) {
+              if (typeof selectPegawaiComboboxOption === 'function') {
+                selectPegawaiComboboxOption(lastPegawai, lastPegawai);
+              }
+            }
+          }, 150);
+        }
       }
     });
   };
@@ -320,10 +371,29 @@
     }
   };
 
-  // Override handleLogin untuk menambahkan popup "Ingat Saya"
+  // Override handleLogin untuk menambahkan popup "Ingat Saya" - KHUSUS MODE APK ANDROID
   const origHandleLogin = window.handleLogin;
   window.handleLogin = function(e) {
     if (e) e.preventDefault();
+
+    const isApk = Boolean(
+      (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ||
+      window.location.protocol === 'capacitor:' ||
+      window.location.hostname === 'localhost' ||
+      (navigator.userAgent && navigator.userAgent.includes('Capacitor')) ||
+      window.location.search.includes('apk=1') ||
+      window.location.search.includes('native=1') ||
+      (window.Capacitor && window.Capacitor.platform === 'android') ||
+      document.documentElement.classList.contains('is-native-apk') ||
+      (document.body && document.body.classList.contains('is-native-apk')) ||
+      window.IS_NATIVE_APK
+    );
+
+    // Jika bukan di APK (web mobile biasa), gunakan handleLogin bawaan web
+    if (!isApk) {
+      if (typeof origHandleLogin === 'function') origHandleLogin(e);
+      return;
+    }
 
     const selectEl = document.getElementById('loginPegawaiSelect');
     if (!selectEl || !selectEl.value) {
@@ -413,7 +483,13 @@
         }
 
         // Simpan / hapus remember me
-        window.savePegawaiPasswordRemember(selectedPegawai, inputPass, chk ? chk.checked : false);
+        const shouldRemember = chk ? chk.checked : true;
+        window.savePegawaiPasswordRemember(selectedPegawai, inputPass, shouldRemember);
+        if (shouldRemember) {
+          localStorage.setItem('ckg_apk_last_pegawai', selectedPegawai);
+        } else {
+          localStorage.removeItem('ckg_apk_last_pegawai');
+        }
         return true;
       }
     }).then((res) => {
@@ -983,49 +1059,47 @@
         title: 'Memeriksa Pembaruan...',
         text: 'Menghubungkan ke server sistem CKG...',
         allowOutsideClick: false,
-        didOpen: () => {
+        didOpen: function() {
           Swal.showLoading();
         }
       });
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 4000);
 
     fetch('/api/apk/version', { signal: controller.signal, cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
         clearTimeout(timeoutId);
         if (data && data.success && data.updateAvailable && data.latestVersion && data.latestVersion !== CURRENT_APK_VERSION) {
           if (typeof Swal !== 'undefined') {
             Swal.fire({
               icon: 'info',
               title: 'Pembaruan Tersedia!',
-              html: 
-                <div style="text-align: left; font-size: 13.5px; line-height: 1.5;">
-                  <p style="margin-bottom: 8px;">Versi baru <b>v\</b> telah tersedia untuk diunduh.</p>
-                  <div style="background: #f1f5f9; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; color: #334155; border: 1px solid #e2e8f0;">
-                    <strong style="color: #0369a1;"><i class="bi bi-stars"></i> Catatan Pembaruan:</strong><br>
-                    \
-                  </div>
-                  <div style="font-size: 11px; color: #64748b; display: flex; justify-content: space-between;">
-                    <span>Versi Sekarang: <strong>v\</strong></span>
-                    <span>Versi Baru: <strong style="color: #059669;">v\</strong></span>
-                  </div>
-                </div>
-              ,
+              html: '<div style=\"text-align: left; font-size: 13.5px; line-height: 1.5;\">' +
+                '<p style=\"margin-bottom: 8px;\">Versi baru <b>v' + data.latestVersion + '</b> telah tersedia untuk diunduh.</p>' +
+                '<div style=\"background: #f1f5f9; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; color: #334155; border: 1px solid #e2e8f0;\">' +
+                  '<strong style=\"color: #0369a1;\"><i class=\"bi bi-stars\"></i> Catatan Pembaruan:</strong><br>' +
+                  (data.releaseNotes || 'Pembaruan fitur & perbaikan kestabilan performa.') +
+                '</div>' +
+                '<div style=\"font-size: 11px; color: #64748b; display: flex; justify-content: space-between;\">' +
+                  '<span>Versi Sekarang: <strong>v' + CURRENT_APK_VERSION + '</strong></span>' +
+                  '<span>Versi Baru: <strong style=\"color: #059669;\">v' + data.latestVersion + '</strong></span>' +
+                '</div>' +
+              '</div>',
               showCancelButton: true,
-              confirmButtonText: '<i class="bi bi-download"></i> Unduh APK Sekarang',
+              confirmButtonText: '<i class=\"bi bi-download\"></i> Unduh APK Sekarang',
               cancelButtonText: 'Nanti Saja',
               confirmButtonColor: '#0284c7',
               cancelButtonColor: '#64748b'
-            }).then(result => {
+            }).then(function(result) {
               if (result.isConfirmed && data.downloadUrl) {
                 window.open(data.downloadUrl, '_blank');
               }
             });
           } else {
-            alert(Pembaruan Tersedia: v\\n\);
+            alert('Pembaruan Tersedia: v' + data.latestVersion + '\n' + (data.releaseNotes || ''));
           }
         } else {
           // Versi Terbaru
@@ -1033,23 +1107,21 @@
             Swal.fire({
               icon: 'success',
               title: 'Aplikasi Versi Terbaru',
-              html: 
-                <div style="font-size: 13.5px; line-height: 1.5;">
-                  <p style="margin-bottom: 8px;">Aplikasi CKG Mobile Anda sudah berada pada versi paling mutakhir.</p>
-                  <span class="badge" style="background: #ecfdf5; color: #065f46; border: 1.5px solid #a7f3d0; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px;">
-                    <i class="bi bi-check-circle-fill"></i> Versi Saat Ini: v\ (Terbaru)
-                  </span>
-                </div>
-              ,
+              html: '<div style=\"font-size: 13.5px; line-height: 1.5;\">' +
+                '<p style=\"margin-bottom: 8px;\">Aplikasi CKG Mobile Anda sudah berada pada versi paling mutakhir.</p>' +
+                '<span class=\"badge\" style=\"background: #ecfdf5; color: #065f46; border: 1.5px solid #a7f3d0; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px;\">' +
+                  '<i class=\"bi bi-check-circle-fill\"></i> Versi Saat Ini: v' + CURRENT_APK_VERSION + ' (Terbaru)' +
+                '</span>' +
+              '</div>',
               confirmButtonText: 'Selesai',
               confirmButtonColor: '#10b981'
             });
           } else {
-            alert(Aplikasi sudah dalam versi terbaru (v\).);
+            alert('Aplikasi sudah dalam versi terbaru (v' + CURRENT_APK_VERSION + ').');
           }
         }
       })
-      .catch(err => {
+      .catch(function(err) {
         clearTimeout(timeoutId);
         console.warn('[CheckUpdateManual] Offline atau gagal fetch:', err);
         if (typeof Swal !== 'undefined') {
@@ -1067,4 +1139,3 @@
   };
 
 })();
-
