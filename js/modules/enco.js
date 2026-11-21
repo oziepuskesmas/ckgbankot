@@ -1,4 +1,4 @@
-/**
+﻿/**
  * APLIKASI INFO CKG - PUSKESMAS BANJARAN KOTA
  * Module: ENCO Bot Integration, Bot Queue, Automated Screening Records & Reports
  */
@@ -36,9 +36,17 @@ async function fetchBotQueueCounts() {
 // Toggle Pilih Semua Checkbox CKG Gratis
 function toggleSelectAllCkgGratis(masterEl) {
   const isChecked = !!masterEl.checked;
+  const master1 = document.getElementById('chkCkgGratisAll');
+  const master2 = document.getElementById('chkCkgGratisAllMobile');
+  if (master1 && master1 !== masterEl) master1.checked = isChecked;
+  if (master2 && master2 !== masterEl) master2.checked = isChecked;
+
   document.querySelectorAll('.chk-ckg-gratis-row').forEach(chk => {
     chk.checked = isChecked;
   });
+  if (typeof updateCkgSelectedCount === 'function') {
+    updateCkgSelectedCount();
+  }
 }
 
 // Kirim pasien terpilih ke antrean Bot ENCO (CKG Umum)
