@@ -2284,57 +2284,68 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-purple" onclick="openTambahSiswaModal()" id="btnTambahSiswaSekolah">
+              <button class="btn" onclick="openTambahSiswaModal()" id="btnTambahSiswaSekolah"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-person-plus-fill"></i> Tambah Siswa
               </button>
-              <button class="btn btn-warning" id="btnAnomaliNikSekolah" onclick="openAnomaliNikModal()"
+              <button class="btn" id="btnAnomaliNikSekolah" onclick="openAnomaliNikModal()"
                 title="Cek & Kelola Data Siswa yang NIK-nya Kurang, Lebih, atau Kosong"
-                style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);">
+                style="background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);">
                 <i class="bi bi-exclamation-triangle-fill"></i> Data NIK Bermasalah <span id="badgeCountAnomaliNik" class="badge" style="background: rgba(255,255,255,0.3); color: #fff; margin-left: 4px; font-size: 11px;">0</span>
               </button>
               <button class="btn" id="btnAbsensiTtdSekolah" onclick="openModalAbsensiTtd()"
                 title="Daftar Siswi Remaja Putri & Absensi Minum Tablet Tambah Darah (TTD)"
-                style="background: linear-gradient(135deg, #ec4899, #db2777); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.25);">
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
                 <i class="bi bi-capsule"></i> Absen Minum TTD Siswi <span id="badgeCountTtdTotal" class="badge" style="background: rgba(255,255,255,0.3); color: #fff; margin-left: 4px; font-size: 11px;">0</span>
               </button>
-              <button class="btn btn-secondary" onclick="openBotQueueModal('SEKOLAH')" title="Kelola Antrean Siswa Sekolah untuk Bot ENCO" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+              <button class="btn" onclick="openBotQueueModal('SEKOLAH')" title="Kelola Antrean Siswa Sekolah untuk Bot ENCO"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-robot"></i> Antrean Bot Sekolah <span id="badgeQueueCountSekolah" class="badge" style="background: rgba(255,255,255,0.25); margin-left: 4px; font-size: 11px;">0</span>
               </button>
-              <button class="btn btn-secondary" onclick="sendCurrentSekolahToBotQueue()" title="Kirim Seluruh Siswa di Kelas Ini ke Antrean Bot ENCO" style="background: #f0fdf4; color: #166534; border: 1.5px solid #bbf7d0; font-weight: 700;">
-                <i class="bi bi-cloud-arrow-up-fill" style="color: #16a34a;"></i> Kirim Kelas ke Antrean Bot
+              <button class="btn" onclick="sendCurrentSekolahToBotQueue()" title="Kirim Seluruh Siswa di Kelas Ini ke Antrean Bot ENCO"
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Kirim Kelas ke Antrean Bot
               </button>
-              <button class="btn btn-amber" onclick="openImportSekolahModal()">
+              <button class="btn" onclick="openImportSekolahModal()"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel
               </button>
-              <button class="btn btn-emerald" id="btnExportSekolah" onclick="exportSekolahToXLSX()">
+              <button class="btn" id="btnExportSekolah" onclick="exportSekolahToXLSX()"
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
                 <i class="bi bi-file-earmark-arrow-down-fill"></i> Eksport Excel
               </button>
-              <button class="btn btn-sky" id="btnLaporanSekolah" onclick="openLaporanSekolahModal()"
+              <button class="btn" id="btnLaporanSekolah" onclick="openLaporanSekolahModal()"
                 title="Buka & Cetak Output Laporan Resmi Hasil Pemeriksaan Siswa Sekolah"
-                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-file-earmark-medical-fill"></i> Cetak Laporan Hasil
               </button>
               <button class="btn btn-secondary" id="btnRefreshSekolah" onclick="fetchSekolahRecordsFromCloud(true)">
                 <i class="bi bi-arrow-clockwise"></i> Refresh Data
               </button>
-              <button class="btn btn-indigo admin-only" onclick="openKelolaSekolahModal()"
-                title="Kelola Daftar Master Sekolah: Tambah, Edit, atau Hapus Sekolah (Khusus Admin)" style="background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff;">
+              <button class="btn admin-only" onclick="openKelolaSekolahModal()"
+                title="Kelola Daftar Master Sekolah: Tambah, Edit, atau Hapus Sekolah (Khusus Admin)"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-building-gear"></i> Kelola Sekolah
               </button>
-              <button class="btn btn-primary admin-koordinator-only" onclick="openNaikKelasModal()"
-                title="Kenaikan Kelas Siswa (Contoh: Kelas 7 -> 8, 8 -> 9, 9 -> LULUS)" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;">
+              <button class="btn admin-koordinator-only" onclick="openNaikKelasModal()"
+                title="Kenaikan Kelas Siswa (Contoh: Kelas 7 -> 8, 8 -> 9, 9 -> LULUS)"
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
                 <i class="bi bi-mortarboard-fill"></i> Naik Kelas
               </button>
-              <button class="btn btn-teal admin-koordinator-only" onclick="openMigrasiSekolahModal()"
-                title="Migrasi / Mutasi Siswa Antar Sekolah" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff;">
+              <button class="btn admin-koordinator-only" onclick="openMigrasiSekolahModal()"
+                title="Migrasi / Mutasi Siswa Antar Sekolah"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-arrow-left-right"></i> Migrasi Sekolah
               </button>
-              <button class="btn btn-rose admin-koordinator-only" onclick="openDuplicateFinderModal()" title="Cari data ganda / NIK sama yang sudah terlanjur ada di database">
+              <button class="btn admin-koordinator-only" onclick="openDuplicateFinderModal()"
+                title="Cari data ganda / NIK sama yang sudah terlanjur ada di database"
+                style="background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);">
                 <i class="bi bi-copy"></i> Cek Duplikat
               </button>
-              <button class="btn btn-danger admin-koordinator-only" id="btnHapusSemuaDataSekolah"
+              <button class="btn admin-koordinator-only" id="btnHapusSemuaDataSekolah"
                 onclick="openHapusDataSekolahModal()"
-                title="Hapus Data Siswa: Pilih spesifik Sekolah, Kelas, dan Tahun atau Semua (Khusus Admin / Koordinator)">
+                title="Hapus Data Siswa: Pilih spesifik Sekolah, Kelas, dan Tahun atau Semua (Khusus Admin / Koordinator)"
+                style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);">
                 <i class="bi bi-trash3-fill"></i> Hapus Semua
               </button>
             </div>
