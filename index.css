@@ -653,88 +653,87 @@ body {
   white-space: nowrap;
 }
 
-/* Primary Hero Buttons (Add / Submit / Main CTA): Solid Royal Indigo Gradient */
+/* Primary Hero Buttons (Add / Submit / Main CTA / Input / Manage): Solid Ocean Blue Gradient (Kaya Cetak Laporan) */
 .btn-primary,
+.btn-blue,
+.btn-sky,
 .btn-purple,
 .btn-indigo {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%) !important;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #4338ca !important;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25) !important;
+  border: 1px solid #0284c7 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
 }
 .btn-primary:hover,
+.btn-blue:hover,
+.btn-sky:hover,
 .btn-purple:hover,
 .btn-indigo:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%) !important;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35) !important;
   transform: translateY(-1px);
 }
 
-/* Secondary Action Buttons (Import, Export, Bagi Data, Verifikasi): Soft Indigo Lavender Surface */
-.btn-secondary,
-.btn-amber,
+/* Emerald Green Buttons (Export, Download, Excel, Bot Submission, Positive): Solid Vibrant Green */
 .btn-emerald,
-.btn-cyan,
-.btn-blue {
-  background: #eef2ff !important;
-  border: 1px solid #c7d2fe !important;
-  color: #3730a3 !important;
-  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.05) !important;
+.btn-success,
+.btn-green {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #059669 !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
 }
-.btn-secondary:hover,
-.btn-amber:hover,
 .btn-emerald:hover,
-.btn-cyan:hover,
-.btn-blue:hover {
-  background: #e0e7ff !important;
-  color: #312e81 !important;
-  border-color: #a5b4fc !important;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.12) !important;
+.btn-success:hover,
+.btn-green:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35) !important;
   transform: translateY(-1px);
 }
 
-.btn-rose {
-  background: #fff1f2 !important;
-  border: 1px solid #fecdd3 !important;
-  color: #be123c !important;
-  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08) !important;
-}
-.btn-rose:hover {
-  background: #ffe4e6 !important;
-  color: #9f1239 !important;
-  border-color: #fda4af !important;
-  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.15) !important;
-  transform: translateY(-1px);
-}
-
-/* Utility / Refresh / Filter Ghost Buttons: Clean Slate Navy */
-.btn-slate,
-.btn-outline-secondary {
-  background: #f8fafc !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #475569 !important;
-}
-.btn-slate:hover,
-.btn-outline-secondary:hover {
-  background: #f1f5f9 !important;
-  color: #1e293b !important;
-  border-color: #94a3b8 !important;
-  transform: translateY(-1px);
-}
-
-/* Destructive / Danger Buttons: Refined Soft Rose */
+/* Destructive / Danger Buttons (Delete / Reset / Anomali): Solid Vibrant Red */
 .btn-danger,
-.btn-rose {
-  background: #fef2f2 !important;
-  border: 1px solid #fecaca !important;
-  color: #dc2626 !important;
-  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.05) !important;
+.btn-red {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #dc2626 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
 }
 .btn-danger:hover,
+.btn-red:hover {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+.btn-rose {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #e11d48 !important;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25) !important;
+}
 .btn-rose:hover {
-  background: #fee2e2 !important;
-  color: #b91c1c !important;
-  border-color: #fca5a5 !important;
+  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%) !important;
+  box-shadow: 0 6px 16px rgba(225, 29, 72, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+/* Secondary / Refresh / Neutral: Clean Crisp Slate */
+.btn-secondary,
+.btn-slate,
+.btn-outline-secondary {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+.btn-secondary:hover,
+.btn-slate:hover,
+.btn-outline-secondary:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
   transform: translateY(-1px);
 }
 

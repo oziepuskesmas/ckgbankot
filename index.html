@@ -1252,7 +1252,7 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-primary" onclick="exportToXLSX()">
+              <button class="btn btn-emerald" onclick="exportToXLSX()">
                 <i class="bi bi-file-earmark-excel-fill"></i> Ekspor Excel (XLSX)
               </button>
               <button class="btn btn-secondary" onclick="renderLaporanView()">
@@ -1395,27 +1395,27 @@
               <button class="btn btn-primary" onclick="openInputModal('Luar Gedung')">
                 <i class="bi bi-plus-lg"></i> Input Data CKG
               </button>
-              <button class="btn btn-secondary" onclick="openImportModal()">
+              <button class="btn btn-primary" onclick="openImportModal()">
                 <i class="bi bi-file-earmark-arrow-up"></i> Import Data
               </button>
-              <button class="btn btn-secondary" onclick="exportToXLSX()">
+              <button class="btn btn-emerald" onclick="exportToXLSX()">
                 <i class="bi bi-file-earmark-arrow-down"></i> Download Data
               </button>
-              <button class="btn btn-secondary" onclick="exportToBotEncoXLSX()" title="Download Excel Format Bot ENCO untuk CKG Umum" style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; font-weight: 700; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.25);">
+              <button class="btn btn-emerald" onclick="exportToBotEncoXLSX()" title="Download Excel Format Bot ENCO untuk CKG Umum">
                 <i class="bi bi-robot"></i> Format Bot ENCO
               </button>
               <button class="btn btn-secondary" onclick="renderTableRecords()">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
               </button>
-              <button class="btn btn-secondary admin-only" id="btnImportAdminCkg" onclick="openAdminImportModal()">
+              <button class="btn btn-primary admin-only" id="btnImportAdminCkg" onclick="openAdminImportModal()">
                 <i class="bi bi-person-lines-fill"></i> Import Admin
               </button>
-              <button class="btn btn-secondary admin-only" id="btnAiRepairRecordsAdmin"
+              <button class="btn btn-emerald admin-only" id="btnAiRepairRecordsAdmin"
                 onclick="repairAllRecordsAddressWithAi()"
                 title="Perbaiki Kelurahan, Kecamatan, Kab/Kota, Provinsi di Data CKG, SIMPUS & Sekolah Otomatis">
                 <i class="bi bi-magic"></i> Auto-Repair AI
               </button>
-              <button class="btn btn-secondary admin-only" id="btnBulkUpdateDateAdmin"
+              <button class="btn btn-primary admin-only" id="btnBulkUpdateDateAdmin"
                 onclick="openBulkUpdateDateModal()" title="Ubah Tanggal Entry Massal Bulan & Tahun Target">
                 <i class="bi bi-calendar-range-fill"></i> Ubah Tgl Massal
               </button>
@@ -1567,16 +1567,16 @@
               <button class="btn btn-primary" onclick="openInputModal('Luar Gedung', false, 'ckg-gratis')">
                 <i class="bi bi-plus-lg"></i> Input Data CKG
               </button>
-              <button class="btn btn-secondary" onclick="openBotQueueModal('UMUM')" title="Kelola Antrean Pasien yang Akan Dientry oleh Bot ENCO" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-weight: 700; border: none; box-shadow: 0 2px 6px rgba(2,132,199,0.25);">
+              <button class="btn btn-primary" onclick="openBotQueueModal('UMUM')" title="Kelola Antrean Pasien yang Akan Dientry oleh Bot ENCO">
                 <i class="bi bi-robot"></i> Antrean Bot CKG Umum <span id="badgeQueueCountUmum" class="badge" style="background: rgba(255,255,255,0.25); margin-left: 4px; font-size: 11px;">0</span>
               </button>
-              <button class="btn btn-secondary" onclick="sendSelectedCkgGratisToBotQueue()" title="Kirim Pasien Terpilih ke Antrean Bot ENCO" style="background: #f0fdf4; color: #166534; border: 1.5px solid #bbf7d0; font-weight: 700;">
-                <i class="bi bi-cloud-arrow-up-fill" style="color: #16a34a;"></i> Masukkan ke Antrean Bot
+              <button class="btn btn-emerald" onclick="sendSelectedCkgGratisToBotQueue()" title="Kirim Pasien Terpilih ke Antrean Bot ENCO">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Masukkan ke Antrean Bot
               </button>
-              <button class="btn btn-secondary" onclick="exportToBotEncoXLSX('ckg-gratis')" title="Download Excel Format Bot ENCO untuk CKG Umum" style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; font-weight: 700; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.25);">
+              <button class="btn btn-emerald" onclick="exportToBotEncoXLSX('ckg-gratis')" title="Download Excel Format Bot ENCO untuk CKG Umum">
                 <i class="bi bi-download"></i> Download Format Bot ENCO
               </button>
-              <button class="btn btn-secondary" onclick="openImportModal('ckg-gratis')">
+              <button class="btn btn-primary" onclick="openImportModal('ckg-gratis')">
                 <i class="bi bi-file-earmark-arrow-up"></i> Import Data
               </button>
               <button class="btn btn-secondary" onclick="fetchCkgGratisFromCloud(true)">
@@ -1735,7 +1735,7 @@
             </div>
 
             <div class="action-buttons-group">
-              <button class="btn btn-primary" onclick="exportEncoToExcel()" title="Download Excel (.xlsx)">
+              <button class="btn btn-emerald" onclick="exportEncoToExcel()" title="Download Excel (.xlsx)">
                 <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
               </button>
               <button class="btn btn-secondary" onclick="renderEncoView()" title="Muat ulang data">
@@ -1967,7 +1967,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="copyEncoReportWebSummary()" title="Salin Ringkasan Teks">
                   <i class="bi bi-clipboard-check"></i> Salin Ringkasan
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="exportEncoReportsExcel()" style="background: #10b981; border-color: #059669;" title="Download Excel">
+                <button class="btn btn-emerald btn-sm" onclick="exportEncoReportsExcel()" title="Download Excel">
                   <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
                 </button>
                 <button class="btn btn-secondary btn-sm" onclick="loadEncoReportsWeb()" title="Segarkan">
@@ -2088,17 +2088,17 @@
               <button class="btn btn-primary" onclick="importSimpusXlsx()">
                 <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Data XLSX
               </button>
-              <button class="btn btn-secondary admin-koordinator-only" onclick="openBagiPetugasModal()">
+              <button class="btn btn-emerald admin-koordinator-only" onclick="openBagiPetugasModal()">
                 <i class="bi bi-person-fill-gear"></i> Bagi Data ke Petugas
               </button>
-              <button class="btn btn-secondary admin-only" id="btnSimpusAdminMultiImport"
+              <button class="btn btn-primary admin-only" id="btnSimpusAdminMultiImport"
                 onclick="openSimpusAdminMultiImportModal()">
                 <i class="bi bi-person-lines-fill"></i> Import Multi-Petugas
               </button>
-              <button class="btn btn-secondary" onclick="openEksporPerPetugasModal()">
+              <button class="btn btn-emerald" onclick="openEksporPerPetugasModal()">
                 <i class="bi bi-file-earmark-spreadsheet-fill"></i> Ekspor Petugas
               </button>
-              <button class="btn btn-secondary" onclick="openDukcapilModal()">
+              <button class="btn btn-primary" onclick="openDukcapilModal()">
                 <i class="bi bi-shield-check"></i> Verifikasi Dukcapil
               </button>
               <button class="btn btn-secondary" onclick="renderSimpusView()">
@@ -2613,16 +2613,16 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-sky" onclick="openTambahItemModal()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff;">
+              <button class="btn btn-primary" onclick="openTambahItemModal()">
                 <i class="bi bi-plus-circle-fill"></i> Tambah Item Baru
               </button>
-              <button class="btn btn-emerald" onclick="openCatatPemakaianModal()" style="background: linear-gradient(135deg, #059669, #047857); color: #fff;">
+              <button class="btn btn-emerald" onclick="openCatatPemakaianModal()">
                 <i class="bi bi-clipboard-plus-fill"></i> Catat Pemakaian Lapangan
               </button>
-              <button class="btn btn-purple" onclick="openPeminjamanModal()" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff;">
+              <button class="btn btn-primary" onclick="openPeminjamanModal()">
                 <i class="bi bi-arrow-left-right"></i> Pinjam Alat Medis
               </button>
-              <button class="btn btn-emerald" onclick="exportAlatBnhpToXLSX()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff;">
+              <button class="btn btn-emerald" onclick="exportAlatBnhpToXLSX()">
                 <i class="bi bi-file-earmark-arrow-down-fill"></i> Eksport Excel
               </button>
               <button class="btn btn-secondary" onclick="fetchAlatBnhpFromCloud(true)">
@@ -2919,7 +2919,7 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-primary" onclick="restoreFilteredRecycle()"
+              <button class="btn btn-emerald" onclick="restoreFilteredRecycle()"
                 title="Pulihkan Seluruh Data Sesuai Filter saat ini">
                 <i class="bi bi-arrow-counterclockwise"></i> Restore Data Terfilter
               </button>
@@ -3067,11 +3067,10 @@
                 </p>
               </div>
               <div class="action-buttons-group">
-                <button class="btn btn-amber" onclick="openCustomLogoModal()">
+                <button class="btn btn-primary" onclick="openCustomLogoModal()">
                   <i class="bi bi-image-fill"></i> Custom Logo PNG
                 </button>
-                <button class="btn btn-emerald" onclick="manualRefreshLiveSessions()"
-                  style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; font-weight: 700;">
+                <button class="btn btn-emerald" onclick="manualRefreshLiveSessions()">
                   <i class="bi bi-arrow-clockwise"></i> Refresh Status Sesi
                 </button>
                 <button class="btn btn-primary" onclick="openAddUserModal()">
@@ -3163,7 +3162,7 @@
                 <select id="adminFilterDesaPosyandu" class="filter-control" onchange="renderAdminPosyanduTable()">
                   <option value="">Semua Desa / Kelurahan</option>
                 </select>
-                <button class="btn btn-primary" onclick="openAddPosyanduModal()" style="background: linear-gradient(135deg, #e11d48, #db2777); border: none;">
+                <button class="btn btn-rose" onclick="openAddPosyanduModal()">
                   <i class="bi bi-plus-circle-fill"></i> + Tambah Posyandu
                 </button>
               </div>
@@ -3246,10 +3245,10 @@
                 </p>
               </div>
               <div class="action-buttons-group">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="resetMenuConfigToDefault()" title="Kembalikan urutan dan hak akses ke pengaturan awal">
+                <button type="button" class="btn btn-danger btn-sm" onclick="resetMenuConfigToDefault()" title="Kembalikan urutan dan hak akses ke pengaturan awal">
                   <i class="bi bi-arrow-counterclockwise"></i> Reset Default
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="saveMenuConfigToCloud()" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); font-weight: 700;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveMenuConfigToCloud()">
                   <i class="bi bi-cloud-check-fill"></i> Simpan Pengaturan Menu
                 </button>
               </div>
@@ -3306,14 +3305,12 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-secondary btn-sm" onclick="downloadKamusAlamatTemplate()"
-                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; font-weight: 700; border-radius: 6px; padding: 6px 14px;">
+              <button class="btn btn-primary btn-sm" onclick="downloadKamusAlamatTemplate()">
                 <i class="bi bi-file-earmark-arrow-down-fill"></i> Download Template Excel
               </button>
               <input type="file" id="excelAddressFileInput" accept=".xlsx, .xls, .csv" style="display: none;"
                 onchange="handleExcelAddressUpload(event)">
-              <button class="btn btn-emerald btn-sm" onclick="document.getElementById('excelAddressFileInput').click()"
-                style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; border: none; font-weight: 700; border-radius: 6px; padding: 6px 14px;">
+              <button class="btn btn-emerald btn-sm" onclick="document.getElementById('excelAddressFileInput').click()">
                 <i class="bi bi-file-earmark-excel-fill"></i> Import Kamus Alamat (Excel)
               </button>
             </div>
@@ -7253,7 +7250,7 @@
 
       <div class="modal-footer" style="padding: 14px 22px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
         <button type="button" class="btn btn-secondary" onclick="closePeminjamanModal()" style="border-radius: 8px; font-weight: 600;">Batal</button>
-        <button type="button" class="btn btn-purple" onclick="savePeminjaman()" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border-radius: 8px; font-weight: 700; padding: 7px 18px;">
+        <button type="button" class="btn btn-primary" onclick="savePeminjaman()" style="border-radius: 8px; font-weight: 700; padding: 7px 18px;">
           <i class="bi bi-arrow-left-right"></i> Simpan Peminjaman
         </button>
       </div>
