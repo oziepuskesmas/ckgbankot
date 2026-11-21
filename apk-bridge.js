@@ -1,4 +1,4 @@
-/**
+﻿/**
  * APK Bridge & Role-Based Menu, Mobile Sidebar, Remember Password & Enhanced OCR
  * Puskesmas Banjaran Kota - Sistem Informasi CKG
  */
@@ -972,6 +972,98 @@
         window.skipApkUpdateCheck();
       }, 1200);
     }
+  };
+
+  /**
+   * Pengecekan manual pembaruan aplikasi via tombol di sidebar APK
+   */
+  window.checkApkUpdateManual = function() {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Memeriksa Pembaruan...',
+        text: 'Menghubungkan ke server sistem CKG...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    fetch('/api/apk/version', { signal: controller.signal, cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        clearTimeout(timeoutId);
+        if (data && data.success && data.updateAvailable && data.latestVersion && data.latestVersion !== CURRENT_APK_VERSION) {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              icon: 'info',
+              title: 'Pembaruan Tersedia!',
+              html: 
+                <div style="text-align: left; font-size: 13.5px; line-height: 1.5;">
+                  <p style="margin-bottom: 8px;">Versi baru <b>v\</b> telah tersedia untuk diunduh.</p>
+                  <div style="background: #f1f5f9; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; font-size: 12px; color: #334155; border: 1px solid #e2e8f0;">
+                    <strong style="color: #0369a1;"><i class="bi bi-stars"></i> Catatan Pembaruan:</strong><br>
+                    \
+                  </div>
+                  <div style="font-size: 11px; color: #64748b; display: flex; justify-content: space-between;">
+                    <span>Versi Sekarang: <strong>v\</strong></span>
+                    <span>Versi Baru: <strong style="color: #059669;">v\</strong></span>
+                  </div>
+                </div>
+              ,
+              showCancelButton: true,
+              confirmButtonText: '<i class="bi bi-download"></i> Unduh APK Sekarang',
+              cancelButtonText: 'Nanti Saja',
+              confirmButtonColor: '#0284c7',
+              cancelButtonColor: '#64748b'
+            }).then(result => {
+              if (result.isConfirmed && data.downloadUrl) {
+                window.open(data.downloadUrl, '_blank');
+              }
+            });
+          } else {
+            alert(Pembaruan Tersedia: v\\n\);
+          }
+        } else {
+          // Versi Terbaru
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              icon: 'success',
+              title: 'Aplikasi Versi Terbaru',
+              html: 
+                <div style="font-size: 13.5px; line-height: 1.5;">
+                  <p style="margin-bottom: 8px;">Aplikasi CKG Mobile Anda sudah berada pada versi paling mutakhir.</p>
+                  <span class="badge" style="background: #ecfdf5; color: #065f46; border: 1.5px solid #a7f3d0; font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 8px; display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="bi bi-check-circle-fill"></i> Versi Saat Ini: v\ (Terbaru)
+                  </span>
+                </div>
+              ,
+              confirmButtonText: 'Selesai',
+              confirmButtonColor: '#10b981'
+            });
+          } else {
+            alert(Aplikasi sudah dalam versi terbaru (v\).);
+          }
+        }
+      })
+      .catch(err => {
+        clearTimeout(timeoutId);
+        console.warn('[CheckUpdateManual] Offline atau gagal fetch:', err);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Gagal Memeriksa Pembaruan',
+            text: 'Tidak dapat terhubung ke server pembaruan. Pastikan perangkat Anda terhubung ke internet.',
+            confirmButtonText: 'Mengerti',
+            confirmButtonColor: '#64748b'
+          });
+        } else {
+          alert('Tidak dapat terhubung ke server pembaruan.');
+        }
+      });
   };
 
 })();

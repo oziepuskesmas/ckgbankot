@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -866,6 +866,11 @@
       </div>
 
       <div class="apk-sidebar-footer">
+        <button type="button" class="btn btn-secondary btn-sm apk-sidebar-update-btn" id="btnCheckApkUpdateSidebar" onclick="checkApkUpdateManual(); closeApkSidebar();" style="width: 100%; justify-content: flex-start; padding: 10px 14px; font-size: 13px; font-weight: 700; border-radius: 10px; margin-bottom: 6px; background: #f0f9ff; color: #0369a1; border: 1.5px solid #bae6fd;">
+          <i class="bi bi-cloud-arrow-down-fill" style="color: #0284c7; margin-right: 8px; font-size: 15px;"></i>
+          <span>Periksa Pembaruan APK</span>
+          <span class="badge" style="background: rgba(2,132,199,0.15); color: #0284c7; margin-left: auto; font-size: 10.5px; border-radius: 6px;">v1.0.0</span>
+        </button>
         <button type="button" class="btn btn-secondary btn-sm" onclick="toggleDarkMode();" style="width: 100%; justify-content: flex-start; padding: 10px 14px; font-size: 13px; font-weight: 700; border-radius: 10px;">
           <i id="apkSidebarThemeIcon" class="bi bi-moon-stars-fill" style="color: #f59e0b; margin-right: 8px;"></i>
           <span id="apkSidebarThemeText">Mode Gelap</span>
@@ -1760,7 +1765,7 @@
           </div>
 
           <!-- Table Container (Desktop: Table, Mobile: Modern Native Cards) -->
-          <div class="table-responsive ckg-table-responsive" id="ckgGratisTableContainer">
+          <div class="ckg-table-wrapper ckg-table-responsive" id="ckgGratisTableContainer">
             <table id="tableCkgGratis" class="custom-table ckg-gratis-table" style="font-size: 12.5px; width: 100%;">
               <thead>
                 <tr style="position: sticky; top: 0; background: #f8fafc; z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">

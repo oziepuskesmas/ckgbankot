@@ -10730,3 +10730,199 @@ body.is-native-apk .ckg-adv-item select {
   font-size: 12px !important;
   border-radius: 8px !important;
 }
+/* ==========================================================================
+   FIX OVERFLOW & CARD CUTOFF FOR CKG GRATIS MOBILE & APK
+   ========================================================================== */
+
+/* 1. Reset Table Wrapper & Responsive container */
+.ckg-table-wrapper,
+.ckg-table-responsive,
+.table-responsive.ckg-table-responsive {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 768px) {
+  .ckg-table-wrapper,
+  .ckg-table-responsive,
+  .table-responsive.ckg-table-responsive {
+    overflow: visible !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #tableCkgGratis,
+  table#tableCkgGratis,
+  .custom-table.ckg-gratis-table,
+  .table-responsive #tableCkgGratis {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    display: block !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+  }
+
+  #tableCkgGratis tbody tr:not([style*="display: none"]):not([style*="display:none"]) {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 12px 12px 12px 38px !important;
+    overflow: hidden !important;
+    margin-bottom: 12px !important;
+  }
+
+  #tableCkgGratis tbody tr td {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    word-break: break-word !important;
+  }
+
+  /* 4 Buttons Row in Card: Exact 4-Column Grid (No Cutoff!) */
+  .ckg-card-action-bar,
+  .ckg-btn-actions-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 5px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-top: 4px !important;
+  }
+
+  .ckg-card-action-bar .btn,
+  .ckg-card-action-bar .btn-action-pill,
+  .ckg-btn-actions-row .btn,
+  .ckg-btn-actions-row .ckg-action-sub-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 36px !important;
+    padding: 4px 1px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    box-sizing: border-box !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .ckg-card-action-bar .btn i,
+  .ckg-btn-actions-row .btn i {
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* Specific Native APK Mode Overrides */
+body.is-native-apk .ckg-table-wrapper,
+body.is-native-apk .ckg-table-responsive,
+body.is-native-apk .table-responsive.ckg-table-responsive {
+  overflow: visible !important;
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 0 75px 0 !important; /* Space for bottom nav */
+}
+
+body.is-native-apk #tableCkgGratis,
+body.is-native-apk table#tableCkgGratis,
+body.is-native-apk .custom-table.ckg-gratis-table,
+body.is-native-apk .table-responsive #tableCkgGratis {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+body.is-native-apk #tableCkgGratis tbody tr:not([style*="display: none"]):not([style*="display:none"]) {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 12px 12px 12px 38px !important;
+  overflow: hidden !important;
+  margin-bottom: 12px !important;
+}
+
+body.is-native-apk #tableCkgGratis tbody tr td {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  word-break: break-word !important;
+}
+
+body.is-native-apk .ckg-card-action-bar,
+body.is-native-apk .ckg-btn-actions-row {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-top: 4px !important;
+}
+
+body.is-native-apk .ckg-card-action-bar .btn,
+body.is-native-apk .ckg-card-action-bar .btn-action-pill,
+body.is-native-apk .ckg-btn-actions-row .btn,
+body.is-native-apk .ckg-btn-actions-row .ckg-action-sub-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 36px !important;
+  padding: 4px 1px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  box-sizing: border-box !important;
+  border-radius: 8px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body.is-native-apk .ckg-card-action-bar .btn i,
+body.is-native-apk .ckg-btn-actions-row .btn i {
+  font-size: 12px !important;
+  flex-shrink: 0 !important;
+}
+
+/* 2. Side Menu Check Update Button */
+.apk-sidebar-update-btn {
+  transition: all 0.2s ease;
+}
+
+.apk-sidebar-update-btn:active {
+  transform: scale(0.98);
+}
+
+body.dark-mode .apk-sidebar-update-btn,
+.dark-mode .apk-sidebar-update-btn {
+  background: #0c2d48 !important;
+  color: #38bdf8 !important;
+  border-color: #0284c7 !important;
+}
+
+body.dark-mode .apk-sidebar-update-btn span.badge,
+.dark-mode .apk-sidebar-update-btn span.badge {
+  background: rgba(56, 189, 248, 0.2) !important;
+  color: #38bdf8 !important;
+}
