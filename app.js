@@ -1049,9 +1049,11 @@ let currentLoginSekolahSearchQuery = '';
 function populateLoginSekolahDropdown() {
   const container = document.getElementById('comboboxLoginSekolahOptions');
   const hiddenInput = document.getElementById('loginSekolahSelect');
+  if (!container) return;
 
+  const schoolList = (typeof MASTER_SARANA_SEKOLAH !== 'undefined' && Array.isArray(MASTER_SARANA_SEKOLAH)) ? MASTER_SARANA_SEKOLAH : [];
   // HANYA tampilkan sekolah yang aktif (is_active !== 0) DAN sudah diset password oleh admin
-  const activeSchools = MASTER_SARANA_SEKOLAH.filter(s => {
+  const activeSchools = schoolList.filter(s => {
     const hasPass = s.password && String(s.password).trim() !== '';
     const isActive = s.is_active !== 0;
     return hasPass && isActive;
@@ -2841,3 +2843,13 @@ async function analyzePatientHealthWithAI(patientData) {
     return 'Gagal memuat saran AI.';
   }
 }
+
+// Window bindings for Sekolah Login Dropdown
+if (typeof populateLoginSekolahDropdown === 'function') window.populateLoginSekolahDropdown = populateLoginSekolahDropdown;
+if (typeof toggleLoginSekolahDropdown === 'function') window.toggleLoginSekolahDropdown = toggleLoginSekolahDropdown;
+if (typeof closeLoginSekolahDropdown === 'function') window.closeLoginSekolahDropdown = closeLoginSekolahDropdown;
+if (typeof onFilterLoginSekolahSearchInput === 'function') window.onFilterLoginSekolahSearchInput = onFilterLoginSekolahSearchInput;
+if (typeof clearSearchInputLoginSekolah === 'function') window.clearSearchInputLoginSekolah = clearSearchInputLoginSekolah;
+if (typeof selectLoginSekolahOption === 'function') window.selectLoginSekolahOption = selectLoginSekolahOption;
+if (typeof clearLoginSekolahSelection === 'function') window.clearLoginSekolahSelection = clearLoginSekolahSelection;
+if (typeof handleSekolahLogin === 'function') window.handleSekolahLogin = handleSekolahLogin;

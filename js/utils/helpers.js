@@ -201,12 +201,15 @@ function formatTtdIndoDate(dateStr) {
 // UI Notification / Toast
 function showToast(message, type = 'info') {
   if (typeof Swal !== 'undefined') {
+    const isDark = document.body && document.body.classList.contains('dark-mode');
     const Toast = Swal.mixin({
       toast: true,
-      position: 'top-end',
+      position: 'bottom-end',
       showConfirmButton: false,
-      timer: 3000,
+      timer: 2500,
       timerProgressBar: true,
+      background: isDark ? '#1e293b' : '#ffffff',
+      color: isDark ? '#f8fafc' : '#0f172a',
       didOpen: (toast) => {
         toast.addEventListener('mouseenter', Swal.stopTimer);
         toast.addEventListener('mouseleave', Swal.resumeTimer);

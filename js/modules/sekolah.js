@@ -318,7 +318,7 @@ function saveMasterSekolahToStorage(newList) {
   }
   syncMasterSekolahToCloud(MASTER_SARANA_SEKOLAH);
   populateSekolahFilterDropdowns();
-  populateLoginSekolahDropdown();
+  if (typeof populateLoginSekolahDropdown === 'function') populateLoginSekolahDropdown();
   renderAdminSekolahTable();
 }
 
@@ -352,7 +352,7 @@ async function fetchMasterSekolahFromCloud() {
           localStorage.setItem('ckg_master_sekolah', JSON.stringify(MASTER_SARANA_SEKOLAH));
         } catch (_) { }
         populateSekolahFilterDropdowns();
-        populateLoginSekolahDropdown();
+        if (typeof populateLoginSekolahDropdown === 'function') populateLoginSekolahDropdown();
         renderAdminSekolahTable();
       }
     }
@@ -9568,15 +9568,15 @@ window.applyBankDataStateToIdentitas = applyBankDataStateToIdentitas;
 window.cekNikSiswaBankData = cekNikSiswaBankData;
 
 
-// Window Bindings untuk Searchable Dropdown & Popup Login Sekolah
-window.populateLoginSekolahDropdown = populateLoginSekolahDropdown;
-window.toggleLoginSekolahDropdown = toggleLoginSekolahDropdown;
-window.closeLoginSekolahDropdown = closeLoginSekolahDropdown;
-window.onFilterLoginSekolahSearchInput = onFilterLoginSekolahSearchInput;
-window.clearSearchInputLoginSekolah = clearSearchInputLoginSekolah;
-window.selectLoginSekolahOption = selectLoginSekolahOption;
-window.clearLoginSekolahSelection = clearLoginSekolahSelection;
-window.handleSekolahLogin = handleSekolahLogin;
+// Window Bindings untuk Searchable Dropdown & Popup Login Sekolah (Guarded jika fungsi dimuat di app.js)
+if (typeof populateLoginSekolahDropdown !== 'undefined') window.populateLoginSekolahDropdown = populateLoginSekolahDropdown;
+if (typeof toggleLoginSekolahDropdown !== 'undefined') window.toggleLoginSekolahDropdown = toggleLoginSekolahDropdown;
+if (typeof closeLoginSekolahDropdown !== 'undefined') window.closeLoginSekolahDropdown = closeLoginSekolahDropdown;
+if (typeof onFilterLoginSekolahSearchInput !== 'undefined') window.onFilterLoginSekolahSearchInput = onFilterLoginSekolahSearchInput;
+if (typeof clearSearchInputLoginSekolah !== 'undefined') window.clearSearchInputLoginSekolah = clearSearchInputLoginSekolah;
+if (typeof selectLoginSekolahOption !== 'undefined') window.selectLoginSekolahOption = selectLoginSekolahOption;
+if (typeof clearLoginSekolahSelection !== 'undefined') window.clearLoginSekolahSelection = clearLoginSekolahSelection;
+if (typeof handleSekolahLogin !== 'undefined') window.handleSekolahLogin = handleSekolahLogin;
 
 // Searchable Wilayah Dropdowns (Cek Kesehatan Gratis & CKG Sekolah)
 window.toggleWilayahSearchDropdown = toggleWilayahSearchDropdown;
