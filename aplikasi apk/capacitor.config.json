@@ -1,0 +1,41 @@
+{
+  "appId": "com.puskesmas.banjaran.ckg",
+  "appName": "Pencatatan CKG",
+  "webDir": "www",
+  "server": {
+    "url": "https://ckgbankot.web.id",
+    "cleartext": true,
+    "androidScheme": "https",
+    "allowNavigation": [
+      "ckgbankot.web.id",
+      "*.ckgbankot.web.id",
+      "aplikasi-info-ckg.pages.dev",
+      "*.pages.dev",
+      "*.emsifa.com",
+      "*.openstreetmap.org",
+      "fonts.googleapis.com",
+      "fonts.gstatic.com",
+      "cdn.jsdelivr.net"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#059669",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "spinnerColor": "#ffffff"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#059669"
+    }
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}

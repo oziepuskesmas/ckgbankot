@@ -1,0 +1,40 @@
+# Node & Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cloudflare Wrangler Cache
+.wrangler/
+
+# Android Studio & Gradle
+.gradle/
+**/android/.gradle/
+**/android/build/
+**/android/app/build/
+**/android/local.properties
+**/android/capacitor-cordova-android-plugins/build/
+*.iml
+.idea/
+**/.idea/
+.DS_Store
+Thumbs.db
+
+# File Build APK (Gunakan GitHub Releases untuk upload file APK jadi)
+*.apk
+*.aab
+
+# Backup File & Data Privat / Temporary
+sampah/
+*.backup*
+*backup*
+*monolith*
+*.clean.js
+banner_ckg.backup.png
+*.xlsx
+*.csv
+*.bat
+*.ps1
+find_*.ps1
+prom.txt
+download

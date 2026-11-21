@@ -1,4 +1,4 @@
-﻿/**
+/**
  * APLIKASI INFO CKG - PUSKESMAS BANJARAN KOTA
  * Module: Cek Kesehatan Gratis (CKG Posyandu / Dewasa & Lansia), Form Wizard, Examination Modal, Recycle Bin & Excel Sync
  */
@@ -2522,118 +2522,6 @@ function buildTableRowsHtml(data) {
    🏥 VIEW: CEK KESEHATAN GRATIS (FORMAT TEMPLATE BOT ENCO)
    ========================================================================== */
 
-// Helper: Penanganan Input Pencarian Real-Time
-window.handleCkgSearchInput = function (inputEl) {
-  const query = (inputEl.value || '').trim();
-  const btnClear = document.getElementById('btnSearchCkgClear');
-  if (btnClear) btnClear.style.display = query ? 'inline-flex' : 'none';
-  renderCkgGratisTable();
-};
-
-// Helper: Hapus Pencarian
-window.clearCkgSearch = function () {
-  const inputEl = document.getElementById('searchCkgGratis');
-  if (inputEl) inputEl.value = '';
-  const btnClear = document.getElementById('btnSearchCkgClear');
-  if (btnClear) btnClear.style.display = 'none';
-  renderCkgGratisTable();
-};
-
-// Helper: Filter Cepat Kategori & Status (Chip Buttons)
-window.setQuickCkgFilter = function (filterKey) {
-  document.querySelectorAll('.ckg-filter-chip').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-filter') === filterKey);
-  });
-
-  const usiaSelect = document.getElementById('filterCkgGratisUsia');
-  const statusSelect = document.getElementById('filterCkgGratisStatus');
-
-  if (filterKey === 'all') {
-    if (usiaSelect) usiaSelect.value = '';
-    if (statusSelect) statusSelect.value = '';
-  } else if (filterKey === 'belum') {
-    if (statusSelect) statusSelect.value = 'belum';
-  } else if (filterKey === 'sudah') {
-    if (statusSelect) statusSelect.value = 'sudah';
-  } else {
-    if (usiaSelect) usiaSelect.value = filterKey;
-  }
-
-  updateCkgFilterActiveBadge();
-  renderCkgGratisTable();
-};
-
-// Helper: Sinkronisasi Dropdown Filter Lanjutan dengan Chips
-window.syncAdvFilterWithPill = function () {
-  const usiaVal = document.getElementById('filterCkgGratisUsia')?.value || '';
-  const statusVal = document.getElementById('filterCkgGratisStatus')?.value || '';
-
-  let matchingKey = 'all';
-  if (statusVal === 'belum') matchingKey = 'belum';
-  else if (statusVal === 'sudah') matchingKey = 'sudah';
-  else if (usiaVal) matchingKey = usiaVal;
-
-  document.querySelectorAll('.ckg-filter-chip').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-filter') === matchingKey);
-  });
-
-  updateCkgFilterActiveBadge();
-};
-
-// Helper: Buka / Tutup Panel Filter Lanjutan (Accordion)
-window.toggleCkgGratisFilterPanel = function () {
-  const panel = document.getElementById('ckgAdvancedFilterBox');
-  const btn = document.getElementById('btnToggleCkgGratisFilter');
-  if (!panel) return;
-  const isCollapsed = panel.classList.contains('collapsed');
-  if (isCollapsed) {
-    panel.classList.remove('collapsed');
-    if (btn) btn.classList.add('active');
-  } else {
-    panel.classList.add('collapsed');
-    if (btn) btn.classList.remove('active');
-  }
-};
-
-// Helper: Update Badge Jumlah Filter Aktif
-window.updateCkgFilterActiveBadge = function () {
-  let count = 0;
-  if (document.getElementById('filterCkgGratisUsia')?.value) count++;
-  if (document.getElementById('filterCkgGratisStatus')?.value) count++;
-  const minVal = document.getElementById('filterCkgGratisMinAge')?.value;
-  if (minVal !== '' && minVal !== undefined && minVal !== null) count++;
-  const maxVal = document.getElementById('filterCkgGratisMaxAge')?.value;
-  if (maxVal !== '' && maxVal !== undefined && maxVal !== null) count++;
-  if (document.getElementById('filterCkgGratisJk')?.value) count++;
-  if (document.getElementById('filterCkgGratisBulan')?.value) count++;
-  if (document.getElementById('filterCkgGratisTahun')?.value) count++;
-  if (document.getElementById('filterCkgGratisPetugas')?.value) count++;
-
-  const badge = document.getElementById('badgeCkgFilterCount');
-  if (badge) {
-    if (count > 0) {
-      badge.textContent = count;
-      badge.style.display = 'inline-flex';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-};
-
-// Helper: Update Counter Pasien yang Dicetang
-window.updateCkgSelectedCount = function () {
-  const checkedCount = document.querySelectorAll('.chk-ckg-gratis-row:checked').length;
-  const badge = document.getElementById('badgeSelectedCountCkg');
-  if (badge) {
-    if (checkedCount > 0) {
-      badge.textContent = `${checkedCount} dipilih`;
-      badge.style.display = 'inline-block';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-};
-
 function renderCkgGratisTable() {
   const tbody = document.getElementById('tableBodyCkgGratis');
   if (!tbody) return;
@@ -2641,7 +2529,6 @@ function renderCkgGratisTable() {
   applyPetugasFilterLock();
 
   const filterUsiaVal = document.getElementById('filterCkgGratisUsia')?.value || '';
-  const filterStatusVal = document.getElementById('filterCkgGratisStatus')?.value || '';
   const filterMinAgeVal = document.getElementById('filterCkgGratisMinAge')?.value;
   const filterMaxAgeVal = document.getElementById('filterCkgGratisMaxAge')?.value;
   const filterMinAge = filterMinAgeVal !== '' ? parseInt(filterMinAgeVal) : NaN;
@@ -2666,15 +2553,6 @@ function renderCkgGratisTable() {
       });
     } else {
       filtered = filtered.filter(r => isRecordInAgeCategory(r, filterUsiaVal));
-    }
-  }
-
-  // 1b. Filter Status Pemeriksaan Medis (Belum / Sudah Periksa)
-  if (filterStatusVal) {
-    if (filterStatusVal === 'belum') {
-      filtered = filtered.filter(r => !(r.bb > 0 || r.tb > 0 || r.lp > 0 || r.td_sistolik > 0 || r.gula_darah > 0 || r.kolesterol > 0 || r.hb > 0));
-    } else if (filterStatusVal === 'sudah') {
-      filtered = filtered.filter(r => (r.bb > 0 || r.tb > 0 || r.lp > 0 || r.td_sistolik > 0 || r.gula_darah > 0 || r.kolesterol > 0 || r.hb > 0));
     }
   }
 
@@ -2741,12 +2619,6 @@ function renderCkgGratisTable() {
     totalBadge.textContent = `Total: ${filtered.length} Pasien`;
   }
 
-  // Sinkronkan tombol silang search
-  const btnClear = document.getElementById('btnSearchCkgClear');
-  if (btnClear) {
-    btnClear.style.display = searchQuery ? 'inline-flex' : 'none';
-  }
-
   // Apply Responsive Pagination (Desktop: 10, Mobile/APK: 3, or dropdown limit)
   const isMobile = isMobileOrApkView();
   const defaultPageSize = isMobile ? 3 : 10;
@@ -2756,7 +2628,7 @@ function renderCkgGratisTable() {
     pageSize = parseInt(limitVal) || defaultPageSize;
   }
 
-  const filterSig = `${filterUsiaVal}|${filterStatusVal}|${filterMinAgeVal}|${filterMaxAgeVal}|${filterJkVal}|${filterBulanVal}|${filterTahunVal}|${filterPetugasVal}|${searchQuery}|${limitVal}`;
+  const filterSig = `${filterUsiaVal}|${filterMinAgeVal}|${filterMaxAgeVal}|${filterJkVal}|${filterBulanVal}|${filterTahunVal}|${filterPetugasVal}|${searchQuery}|${limitVal}`;
   if (lastCkgGratisFilterSignature !== filterSig) {
     currentCkgGratisPage = 1;
     lastCkgGratisFilterSignature = filterSig;
@@ -2779,23 +2651,19 @@ function renderCkgGratisTable() {
   } else {
     renderCkgGratisPagination(totalItems, pageSize, currentCkgGratisPage, totalPages);
   }
-
-  // Update counter pilihan & filter badge
-  updateCkgSelectedCount();
-  updateCkgFilterActiveBadge();
 }
 
 function buildCkgGratisRowsHtml(list, startIndex = 0) {
   if (!list || list.length === 0) {
     return `
       <tr>
-        <td colspan="7" class="ckg-empty-cell" style="text-align: center; padding: 50px 20px; color: #64748b;">
+        <td colspan="6" style="text-align: center; padding: 50px 20px; color: #64748b;">
           <div style="width: 60px; height: 60px; margin: 0 auto 14px auto; background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 14px rgba(5,150,105,0.12);">
             <i class="bi bi-inbox"></i>
           </div>
-          <div style="font-weight: 800; font-size: 15px; color: #064e3b; margin-bottom: 4px;">Tidak Ada Data Skrining CKG</div>
+          <div style="font-weight: 800; font-size: 15px; color: #064e3b; margin-bottom: 4px;">Tidak Ada Data Cek Kesehatan Gratis</div>
           <div style="font-size: 13px; color: #64748b; max-width: 480px; margin: 0 auto 14px auto;">
-            Gunakan tombol <strong>"+ Input Data Pasien"</strong> untuk menginput data baru atau sesuaikan filter pencarian Anda.
+            Gunakan tombol <strong>"+ Input Data CKG"</strong> untuk menginput data pasien baru atau <strong>"Import Data"</strong> untuk mengunggah file Excel.
           </div>
         </td>
       </tr>
@@ -2844,7 +2712,6 @@ function buildCkgGratisRowsHtml(list, startIndex = 0) {
     const isHipertensi = r.td_sistolik > 140 || r.td_diastolik > 90;
     const isGulaTinggi = r.gula_darah > 200;
     const isAnemia = r.hb > 0 && r.hb < 11.0;
-    const isExamined = (r.bb > 0 || r.tb > 0 || r.lp > 0 || r.td_sistolik > 0 || r.gula_darah > 0 || r.kolesterol > 0 || r.hb > 0);
 
     const isBotPernahInput = !!(
       r.status_pelayanan === 'Pernah Input' ||
@@ -2856,13 +2723,13 @@ function buildCkgGratisRowsHtml(list, startIndex = 0) {
     const isBotTerdaftar = (r.status_pendaftaran === 'Sudah Terdaftar' || r.status_pendaftaran === 'berhasil');
     const isBotAntre = !!(r.in_bot_queue || r.bot_queue_date);
     const botStatusBadge = isBotPernahInput
-      ? `<span class="badge" style="background: #f3e8ff; color: #7e22ce; font-weight: 800; font-size: 10px; border: 1.5px solid #d8b4fe; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-clock-history"></i> Pernah Input</span>`
+      ? `<div style="margin-top: 3px;"><span class="badge" style="background: #f3e8ff; color: #7e22ce; font-weight: 800; font-size: 10px; border: 1.5px solid #d8b4fe; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-clock-history"></i> Pernah Input</span></div>`
       : isBotSelesai
-        ? `<span class="badge" style="background: #ecfdf5; color: #059669; font-weight: 800; font-size: 10px; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-robot"></i> Selesai Bot</span>`
+        ? `<div style="margin-top: 3px;"><span class="badge" style="background: #ecfdf5; color: #059669; font-weight: 800; font-size: 10px; border: 1px solid #a7f3d0; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-robot"></i> Selesai Bot</span></div>`
         : isBotTerdaftar
-          ? `<span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 10px; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-robot"></i> Terdaftar Bot</span>`
+          ? `<div style="margin-top: 3px;"><span class="badge" style="background: #e0f2fe; color: #0369a1; font-weight: 800; font-size: 10px; border: 1px solid #bae6fd; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-robot"></i> Terdaftar Bot</span></div>`
           : isBotAntre
-            ? `<span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 800; font-size: 10px; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-hourglass-split"></i> Antre Bot</span>`
+            ? `<div style="margin-top: 3px;"><span class="badge" style="background: #fef3c7; color: #b45309; font-weight: 800; font-size: 10px; border: 1px solid #fde68a; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-hourglass-split"></i> Antre Bot</span></div>`
             : '';
 
     const isInEncoCache = typeof encoState !== 'undefined' && Array.isArray(encoState.cachedRecords) && encoState.cachedRecords.some(ep => cleanNik && String(ep.nik || '').replace(/\D/g, '') === cleanNik);
@@ -2884,149 +2751,129 @@ function buildCkgGratisRowsHtml(list, startIndex = 0) {
     const showCentangHijau = isFromBankData || isEntriBotAsik;
 
     return `
-      <tr class="ckg-record-row" data-id="${r.id}">
-        <!-- 1. Checkbox -->
-        <td class="ckg-cell-check" style="text-align: center; vertical-align: middle;">
-          <input type="checkbox" class="chk-ckg-gratis-row" value="${r.id}" onchange="updateCkgSelectedCount()" style="cursor: pointer; width: 16px; height: 16px; accent-color: #0284c7;">
+      <tr>
+        <td style="text-align: center; vertical-align: middle;"><input type="checkbox" class="chk-ckg-gratis-row" value="${r.id}" style="cursor: pointer; width: 15px; height: 15px; accent-color: #0284c7;"></td>
+        <td style="text-align: center; font-weight: 700; color: #64748b; vertical-align: middle;">${startIndex + i + 1}</td>
+        
+        <!-- KOLOM 2: NAMA PASIEN & IDENTITAS -->
+        <td style="vertical-align: middle;">
+          <div style="font-weight: 800; font-size: 13.5px; color: #1e293b; margin-bottom: 3px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span>${r.nama || '-'}</span>
+            ${showCentangHijau ? `<i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 14px; line-height: 1; flex-shrink: 0;" title="Terdaftar di Bank Data ASIK / Selesai Entri Bot"></i>` : ''}
+            ${isBotPernahInput ? `<span class="badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-size: 10px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-clock-history"></i> Pernah Input</span>` : ''}
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 4px;">
+            ${is16
+        ? `<span class="badge" style="background: #e0f2fe; color: #0369a1; font-family: monospace; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px;"><i class="bi bi-card-text"></i> ${cleanNik}</span>`
+        : isBelumPunyaNik
+          ? `<span class="badge" style="background: #fffbeb; color: #b45309; border: 1.5px solid #fde68a; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px;"><i class="bi bi-person-slash"></i> Belum Ada NIK</span>`
+          : `<span class="badge" style="background: #fee2e2; color: #dc2626; font-family: monospace; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px;"><i class="bi bi-exclamation-triangle"></i> ${cleanNik || '-'}</span>`
+      }
+            <span class="badge ${jk === 'P' ? 'badge-rose' : 'badge-cyan'}" style="font-weight: 800; font-size: 10.5px; padding: 2px 7px;">${jk === 'P' ? 'P' : 'L'}</span>
+            <span class="badge badge-slate" style="font-weight: 700; font-size: 10.5px; padding: 2px 7px;">${r.usia || 0} th</span>
+          </div>
+          <div style="font-size: 11.5px; color: #64748b;">
+            <i class="bi bi-calendar3"></i> Lahir: <strong>${formatDateToYYYYMMDD(r.tanggal_lahir)}</strong>
+            ${(r.nama_wali || r.nik_wali) ? `<span style="color: #b45309; margin-left: 5px;">• Wali: <strong>${r.nama_wali || r.nik_wali}</strong></span>` : ''}
+          </div>
         </td>
 
-        <!-- 2. No Index -->
-        <td class="ckg-cell-no" style="text-align: center; font-weight: 700; color: #64748b; vertical-align: middle;">
-          ${startIndex + i + 1}
-        </td>
-        
-        <!-- 3. NAMA PASIEN & IDENTITAS -->
-        <td class="ckg-cell-patient" style="vertical-align: middle;">
-          <div class="ckg-patient-header-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 4px;">
-            <div class="ckg-patient-name-wrap" style="font-weight: 800; font-size: 13.5px; color: #1e293b; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-              <span class="ckg-patient-name">${escapeHtml(r.nama || '-')}</span>
-              ${showCentangHijau ? `<i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 14px; line-height: 1; flex-shrink: 0;" title="Terdaftar di Bank Data ASIK / Selesai Entri Bot"></i>` : ''}
-              ${isBotPernahInput ? `<span class="badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-size: 10px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-clock-history"></i> Pernah Input</span>` : ''}
-            </div>
-            <div class="ckg-patient-tags-row" style="display: flex; align-items: center; gap: 4px;">
-              <span class="badge ${jk === 'P' ? 'badge-rose' : 'badge-cyan'}" style="font-weight: 800; font-size: 10.5px; padding: 2px 7px;">${jk === 'P' ? 'P' : 'L'}</span>
-              <span class="badge badge-slate" style="font-weight: 700; font-size: 10.5px; padding: 2px 7px;">${r.usia || 0} th</span>
-              ${isExamined
-                ? `<span class="badge badge-emerald ckg-badge-status" style="font-size: 10px; font-weight: 700; padding: 2px 6px;"><i class="bi bi-check-circle-fill"></i> Sudah Periksa</span>`
-                : `<span class="badge badge-amber ckg-badge-status" style="font-size: 10px; font-weight: 700; padding: 2px 6px;"><i class="bi bi-clock-history"></i> Belum Periksa</span>`
-              }
-            </div>
+        <!-- KOLOM 3: ALAMAT & KONTAK -->
+        <td style="vertical-align: middle;">
+          <div style="font-size: 12.5px; font-weight: 700; color: #1e293b; line-height: 1.3; margin-bottom: 2px;">
+            <i class="bi bi-geo-alt-fill" style="color: #ef4444; font-size: 11.5px;"></i> ${alamat}
           </div>
-          <div class="ckg-patient-meta-row" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            ${is16
-              ? `<span class="badge" style="background: #e0f2fe; color: #0369a1; font-family: monospace; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px;"><i class="bi bi-card-text"></i> ${cleanNik}</span>`
-              : isBelumPunyaNik
-                ? `<span class="badge" style="background: #fffbeb; color: #b45309; border: 1.5px solid #fde68a; font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 6px;"><i class="bi bi-person-slash"></i> Belum Ada NIK</span>`
-                : `<span class="badge" style="background: #fee2e2; color: #dc2626; font-family: monospace; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px;"><i class="bi bi-exclamation-triangle"></i> ${cleanNik || '-'}</span>`
-            }
-            <span style="font-size: 11px; color: #64748b;">
-              <i class="bi bi-calendar3"></i> Lahir: <strong>${formatDateToYYYYMMDD(r.tanggal_lahir)}</strong>
-              ${(r.nama_wali || r.nik_wali) ? `<span style="color: #b45309; margin-left: 5px;">• Wali: <strong>${escapeHtml(r.nama_wali || r.nik_wali)}</strong></span>` : ''}
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">
+            ${kel}, Kec. ${kec}
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            ${wa && wa !== '-'
+        ? `<span style="font-family: monospace; font-size: 11px; color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><i class="bi bi-whatsapp"></i> ${wa}</span>`
+        : `<span style="font-size: 11px; color: #94a3b8;">-</span>`
+      }
+            <span class="badge badge-slate" style="font-size: 10px; padding: 1px 6px;">${statusNikah}</span>
+            ${pekerjaan && pekerjaan !== 'Lainnya' ? `<span class="badge badge-slate" style="font-size: 10px; padding: 1px 6px;">${pekerjaan}</span>` : ''}
+          </div>
+        </td>
+
+        <!-- KOLOM 4: HASIL PEMERIKSAAN MEDIS -->
+        <td style="vertical-align: middle;">
+          ${(r.bb > 0 || r.tb > 0 || r.lp > 0 || r.td_sistolik > 0 || r.gula_darah > 0 || r.kolesterol > 0 || r.hb > 0) ? `
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 5px;">
+            <span class="badge" style="background: #f8fafc; color: #334155; font-size: 11px; font-weight: 700; border: 1px solid #e2e8f0; padding: 3px 8px;">
+              <i class="bi bi-speedometer2" style="color: #64748b;"></i> ${r.bb ? r.bb + ' kg' : '-'} / ${r.tb ? r.tb + ' cm' : '-'} / LP ${r.lp ? r.lp + ' cm' : '-'}
+            </span>
+            <span class="badge ${isHipertensi ? 'cell-hipertensi' : 'badge-slate'}" style="font-size: 11px; font-weight: 700; padding: 3px 8px;">
+              <i class="bi bi-heart-pulse-fill" style="color: ${isHipertensi ? '#dc2626' : '#64748b'};"></i> TD: ${r.td_sistolik || '-'}/${r.td_diastolik || '-'}
             </span>
           </div>
-        </td>
-
-        <!-- 4. ALAMAT & KONTAK -->
-        <td class="ckg-cell-address" style="vertical-align: middle;">
-          <div class="ckg-address-main" style="font-size: 12px; font-weight: 700; color: #1e293b; line-height: 1.3; margin-bottom: 3px;">
-            <i class="bi bi-geo-alt-fill" style="color: #ef4444; font-size: 11.5px;"></i> ${escapeHtml(alamat)}
-            <span style="font-size: 11px; font-weight: 500; color: #64748b;">(${escapeHtml(kel)}, Kec. ${escapeHtml(kec)})</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span class="badge ${isGulaTinggi ? 'cell-gula-tinggi' : 'badge-emerald'}" style="font-size: 10.5px; font-weight: 700; padding: 2px 7px;">
+              GDS: ${r.gula_darah || '-'}
+            </span>
+            <span class="badge badge-slate" style="font-size: 10.5px; font-weight: 700; padding: 2px 7px;">
+              Koles: ${r.kolesterol || '-'}
+            </span>
+            <span class="badge ${isAnemia ? 'cell-anemia' : 'badge-slate'}" style="font-size: 10.5px; font-weight: 700; padding: 2px 7px;">
+              HB: ${r.hb || '-'}
+            </span>
+            ${String(r.katarak || '').toLowerCase().includes('ya')
+          ? `<span class="badge badge-rose" style="font-size: 10px; font-weight: 800; padding: 2px 7px;"><i class="bi bi-eye"></i> Katarak</span>`
+          : `<span class="badge badge-slate" style="font-size: 10px; padding: 2px 6px;"><i class="bi bi-eye"></i> Mata Normal</span>`
+        }
           </div>
-          <div class="ckg-contact-row" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            ${wa && wa !== '-'
-              ? `<a href="https://wa.me/62${wa.startsWith('0') ? wa.slice(1) : wa}" target="_blank" class="ckg-wa-link" title="Buka WhatsApp Pasien" style="text-decoration: none; font-family: monospace; font-size: 11px; color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; background: #ecfdf5; padding: 2px 7px; border-radius: 6px; border: 1px solid #a7f3d0;"><i class="bi bi-whatsapp"></i> ${wa}</a>`
-              : `<span style="font-size: 11px; color: #94a3b8;"><i class="bi bi-telephone-x"></i> -</span>`
-            }
-            <span class="badge badge-slate" style="font-size: 10px; padding: 1px 6px;">${statusNikah}</span>
-            ${pekerjaan && pekerjaan !== 'Lainnya' ? `<span class="badge badge-slate" style="font-size: 10px; padding: 1px 6px;">${escapeHtml(pekerjaan)}</span>` : ''}
-          </div>
-        </td>
-
-        <!-- 5. HASIL PEMERIKSAAN MEDIS -->
-        <td class="ckg-cell-medical" style="vertical-align: middle;">
-          ${isExamined ? `
-            <div class="ckg-medical-chips-grid" style="display: flex; flex-direction: column; gap: 4px;">
-              <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <span class="badge" style="background: #f8fafc; color: #334155; font-size: 11px; font-weight: 700; border: 1px solid #e2e8f0; padding: 3px 8px;" title="Antropometri">
-                  <i class="bi bi-speedometer2" style="color: #64748b;"></i> ${r.bb ? r.bb + ' kg' : '-'} / ${r.tb ? r.tb + ' cm' : '-'} / LP ${r.lp ? r.lp + ' cm' : '-'}
-                </span>
-                <span class="badge ${isHipertensi ? 'cell-hipertensi' : 'badge-slate'}" style="font-size: 11px; font-weight: 700; padding: 3px 8px;" title="Tekanan Darah">
-                  <i class="bi bi-heart-pulse-fill" style="color: ${isHipertensi ? '#dc2626' : '#64748b'};"></i> TD: ${r.td_sistolik || '-'}/${r.td_diastolik || '-'}
-                </span>
-              </div>
-              <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-                <span class="badge ${isGulaTinggi ? 'cell-gula-tinggi' : 'badge-emerald'}" style="font-size: 10.5px; font-weight: 700; padding: 2px 7px;" title="Gula Darah Sewaktu">
-                  GDS: ${r.gula_darah || '-'}
-                </span>
-                <span class="badge badge-slate" style="font-size: 10.5px; font-weight: 700; padding: 2px 7px;" title="Kolesterol">
-                  Koles: ${r.kolesterol || '-'}
-                </span>
-                <span class="badge ${isAnemia ? 'cell-anemia' : 'badge-slate'}" style="font-size: 10.5px; font-weight: 700; padding: 2px 7px;" title="Hemoglobin">
-                  HB: ${r.hb || '-'}
-                </span>
-                ${String(r.katarak || '').toLowerCase().includes('ya')
-                  ? `<span class="badge badge-rose" style="font-size: 10px; font-weight: 800; padding: 2px 7px;"><i class="bi bi-eye"></i> Katarak</span>`
-                  : `<span class="badge badge-slate" style="font-size: 10px; padding: 2px 6px;"><i class="bi bi-eye"></i> Normal</span>`
-                }
-              </div>
-            </div>
           ` : `
-            <div class="ckg-unexamined-banner" style="display: flex; align-items: center; gap: 6px;">
-              <span class="badge" style="background: #fffbeb; color: #b45309; border: 1.5px solid #fde68a; font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
-                <i class="bi bi-hourglass-split"></i> Belum Diperiksa
-              </span>
-              <button type="button" class="btn btn-sm btn-quick-medis" onclick="openPemeriksaanCkgGratisModal('${r.id}')" style="padding: 3px 8px; font-size: 10.5px; font-weight: 700; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 6px; cursor: pointer;">
-                + Input Medis
-              </button>
-            </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="badge" style="background: #fffbeb; color: #b45309; border: 1.5px solid #fde68a; font-size: 11px; font-weight: 800; padding: 4px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;">
+              <i class="bi bi-hourglass-split"></i> Belum Diperiksa
+            </span>
+            <button type="button" class="btn btn-sm" onclick="openPemeriksaanCkgGratisModal('${r.id}')" style="padding: 2px 7px; font-size: 10.5px; font-weight: 700; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 5px; cursor: pointer;">
+              + Input Medis
+            </button>
+          </div>
           `}
         </td>
 
-        <!-- 6. PETUGAS & TGL ENTRY -->
-        <td class="ckg-cell-petugas" style="vertical-align: middle;">
-          <div class="ckg-petugas-meta-box">
-            <div class="ckg-petugas-line" style="font-weight: 700; font-size: 11.5px; color: #1e293b; display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
-              <i class="bi bi-person-badge-fill" style="color: #0284c7;"></i> <span>${escapeHtml(r.petugas_entry || r.created_by || '-')}</span>
-            </div>
-            <div style="font-size: 10.5px; color: #64748b; margin-bottom: 4px;">
-              <i class="bi bi-clock"></i> ${formatDateToYYYYMMDD(r.tanggal_entry || r.created_at)}
-            </div>
-            <div class="ckg-validasi-line" style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-              <span class="badge badge-emerald" style="font-size: 9.5px; font-weight: 700; padding: 1.5px 6px;">
-                <i class="bi bi-check-circle-fill"></i> ${r.status_validasi || 'Terverifikasi'}
-              </span>
-              ${botStatusBadge}
-            </div>
+        <!-- KOLOM 5: PETUGAS & TGL ENTRY -->
+        <td style="vertical-align: middle;">
+          <div style="font-weight: 700; font-size: 12px; color: #1e293b; display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+            <i class="bi bi-person-badge-fill" style="color: #0284c7;"></i> ${r.petugas_entry || r.created_by || '-'}
+          </div>
+          <div style="font-size: 11px; color: #64748b; margin-bottom: 4px;">
+            <i class="bi bi-clock"></i> ${formatDateToYYYYMMDD(r.tanggal_entry || r.created_at)}
+          </div>
+          <div>
+            <span class="badge badge-emerald" style="font-size: 10px; font-weight: 700; padding: 2px 7px;">
+              <i class="bi bi-check-circle-fill"></i> ${r.status_validasi || 'Terverifikasi'}
+            </span>
+            ${botStatusBadge}
           </div>
         </td>
 
-        <!-- 7. AKSI -->
-        <td class="ckg-cell-actions" style="text-align: center; vertical-align: middle;">
-          <div class="ckg-card-actions-wrapper">
-            <button class="btn btn-primary btn-sm btn-ckg-card-periksa" onclick="openPemeriksaanCkgGratisModal('${r.id}')" title="Input / Edit Hasil Pemeriksaan Medis">
-              <i class="bi bi-heart-pulse-fill"></i> <span>${isExamined ? 'Periksa / Edit' : 'Periksa'}</span>
+        <!-- KOLOM 6: AKSI -->
+        <td style="text-align: center; vertical-align: middle;">
+          <div style="display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap;">
+            <button class="btn btn-primary btn-sm" onclick="openPemeriksaanCkgGratisModal('${r.id}')" title="Input / Edit Hasil Pemeriksaan Medis" style="padding: 5px 9px; font-weight: 700; font-size: 11px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; background: #0284c7; color: white; border: none; box-shadow: 0 2px 4px rgba(2,132,199,0.2);">
+              <i class="bi bi-heart-pulse-fill"></i> Periksa
             </button>
-            <div class="ckg-card-action-bar">
-              <button class="btn btn-secondary btn-sm btn-action-pill" onclick="viewDetailModal('${r.id}', 'ckg-gratis')" title="Detail Pasien">
-                <i class="bi bi-eye"></i> <span>Detail</span>
-              </button>
-              <button class="btn btn-secondary btn-sm btn-action-pill btn-action-bot" onclick="sendSingleCkgGratisToBotQueue('${r.id}')" title="Kirim ke Antrean Bot ENCO" style="background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;">
-                <i class="bi bi-robot"></i> <span>Bot</span>
-              </button>
-              <button class="btn btn-cyan btn-sm btn-action-pill" onclick="editCkgGratisRecord('${r.id}')" title="Edit Data Identitas Pasien">
-                <i class="bi bi-pencil"></i> <span>Edit</span>
-              </button>
-              <button class="btn btn-danger btn-sm btn-action-pill" onclick="deleteCkgGratisRecord('${r.id}')" title="Hapus Data">
-                <i class="bi bi-trash"></i> <span>Hapus</span>
-              </button>
-            </div>
+            <button class="btn btn-secondary btn-sm" onclick="sendSingleCkgGratisToBotQueue('${r.id}')" title="Kirim Pasien Ini ke Antrean Bot ENCO" style="padding: 5px 8px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;">
+              <i class="bi bi-robot"></i>
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="viewDetailModal('${r.id}', 'ckg-gratis')" title="Detail Pasien" style="padding: 5px 8px;">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-cyan btn-sm" onclick="editCkgGratisRecord('${r.id}')" title="Edit Data Identitas Pasien" style="padding: 5px 8px;">
+              <i class="bi bi-pencil"></i>
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCkgGratisRecord('${r.id}')" title="Hapus Data" style="padding: 5px 8px;">
+              <i class="bi bi-trash"></i>
+            </button>
           </div>
         </td>
       </tr>
     `;
   }).join('');
 }
-
 
 function editCkgGratisRecord(id) {
   const r = ckgGratisRecords.find(item => item.id === id);
@@ -3409,10 +3256,6 @@ async function deleteCkgGratisRecord(id) {
 function resetCkgGratisFilters() {
   const s = document.getElementById('searchCkgGratis');
   if (s) s.value = '';
-  const clr = document.getElementById('searchCkgGratisClear');
-  if (clr) clr.style.display = 'none';
-  const st = document.getElementById('filterCkgGratisStatus');
-  if (st) st.value = '';
   const u = document.getElementById('filterCkgGratisUsia');
   if (u) u.value = '';
   const min = document.getElementById('filterCkgGratisMinAge');
@@ -3431,11 +3274,6 @@ function resetCkgGratisFilters() {
   if (p && isPrivileged) p.value = '';
   const l = document.getElementById('filterCkgGratisLimit');
   if (l) l.value = '10';
-
-  document.querySelectorAll('.ckg-quick-chips-wrapper .ckg-filter-chip').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.filter === 'all');
-  });
-  if (typeof updateCkgFilterActiveBadge === 'function') updateCkgFilterActiveBadge();
 
   renderCkgGratisTable();
 }

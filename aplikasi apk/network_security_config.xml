@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+  Android Network Security Config
+  Copy file ini ke: android/app/src/main/res/xml/network_security_config.xml
+  setelah menjalankan 'npx cap add android'
+-->
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">ckgbankot.web.id</domain>
+    <domain includeSubdomains="true">aplikasi-info-ckg.pages.dev</domain>
+    <domain includeSubdomains="true">pages.dev</domain>
+    <domain includeSubdomains="true">emsifa.com</domain>
+    <domain includeSubdomains="true">fonts.googleapis.com</domain>
+    <domain includeSubdomains="true">fonts.gstatic.com</domain>
+    <domain includeSubdomains="true">cdn.jsdelivr.net</domain>
+    <domain includeSubdomains="true">openstreetmap.org</domain>
+  </domain-config>
+</network-security-config>

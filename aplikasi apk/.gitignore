@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Android build outputs
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+android/.idea/
+
+# Capacitor generated
+.capacitor/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keystore (JANGAN di-commit ke repository!)
+*.jks
+*.keystore

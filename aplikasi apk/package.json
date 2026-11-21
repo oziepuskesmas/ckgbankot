@@ -1,0 +1,25 @@
+{
+  "name": "pencatatan-ckg-puskesmas",
+  "version": "1.0.0",
+  "description": "Aplikasi Pencatatan CKG Puskesmas Banjaran Kota - Sistem Informasi BNBA (APK Android)",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build step needed - static web app'",
+    "cap:init": "npx cap init \"Pencatatan CKG Puskesmas\" com.puskesmas.banjaran.ckg --web-dir www",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "cap:build": "npx cap sync android && npx cap open android",
+    "setup": "npm install && npx cap add android && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "author": "Puskesmas Banjaran Kota",
+  "license": "UNLICENSED",
+  "private": true
+}

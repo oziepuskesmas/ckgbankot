@@ -1,0 +1,22 @@
+_worker.js
+wrangler.toml
+.assetsignore
+.git
+.github
+node_modules
+schema.sql
+Rusak
+functions
+*.md
+server.ps1
+sampah
+download
+aplikasi apk
+.wrangler
+*.backup*
+*.backup.js
+*.clean.js
+*.xlsx
+*.bat
+*.ps1
+prom.txt
