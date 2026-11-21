@@ -305,6 +305,23 @@ function toggleDarkMode() {
 }
 
 function updateThemeToggleUI(isDark) {
+  // 1. Landing Gate Web
+  const portalGateIcon = document.getElementById('portalGateThemeIcon');
+  const portalGateText = document.getElementById('portalGateThemeText');
+  if (portalGateIcon) {
+    portalGateIcon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    portalGateIcon.style.color = isDark ? '#f59e0b' : '#64748b';
+  }
+  if (portalGateText) portalGateText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
+
+  // 2. APK Native Portal
+  const apkPortalIcon = document.getElementById('apkPortalThemeIcon');
+  if (apkPortalIcon) {
+    apkPortalIcon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    apkPortalIcon.style.color = isDark ? '#f59e0b' : '#64748b';
+  }
+
+  // 3. Header Navbar (Internal App)
   const headerBtnIcon = document.getElementById('themeToggleHeaderIcon');
   const headerBtnText = document.getElementById('themeToggleHeaderText');
   if (headerBtnIcon) {
@@ -313,6 +330,7 @@ function updateThemeToggleUI(isDark) {
   }
   if (headerBtnText) headerBtnText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
 
+  // 4. User Dropdown Menu
   const userMenuIcon = document.getElementById('userMenuThemeIcon');
   const userMenuText = document.getElementById('userMenuThemeText');
   if (userMenuIcon) {
@@ -321,6 +339,7 @@ function updateThemeToggleUI(isDark) {
   }
   if (userMenuText) userMenuText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
 
+  // 5. Login View (Puskesmas)
   const loginThemeIcon = document.getElementById('loginThemeIcon');
   const loginThemeText = document.getElementById('loginThemeText');
   if (loginThemeIcon) {
