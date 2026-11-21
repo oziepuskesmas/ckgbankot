@@ -344,9 +344,10 @@ async function fetchMasterSekolahFromCloud() {
         MASTER_SARANA_SEKOLAH = result.data.map(item => ({
           nama: (item.nama || '').trim().toUpperCase(),
           level: (item.level || 'SD').trim().toUpperCase(),
-          password: item.password || '',
+          has_password: Boolean(item.has_password || (item.password && item.password.trim() !== '')),
+          password: '',
           allowed_menus: item.allowed_menus || '',
-          is_active: item.is_active !== undefined ? item.is_active : (item.password ? 1 : 0)
+          is_active: item.is_active !== undefined ? item.is_active : (item.has_password ? 1 : 0)
         }));
         try {
           localStorage.setItem('ckg_master_sekolah', JSON.stringify(MASTER_SARANA_SEKOLAH));

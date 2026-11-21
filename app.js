@@ -13,6 +13,41 @@
   } catch (_) { }
 })();
 
+// Global fetch interceptor to securely attach authentication & role context headers
+(function setupFetchInterceptor() {
+  if (typeof window === 'undefined' || !window.fetch) return;
+  const originalFetch = window.fetch;
+  window.fetch = function(url, init = {}) {
+    try {
+      const role = sessionStorage.getItem('ckg_user_role');
+      const user = sessionStorage.getItem('ckg_user_name');
+      const token = sessionStorage.getItem('ckg_auth_token');
+      if (role || user || token) {
+        init = init || {};
+        let headers = init.headers;
+        if (!headers) {
+          headers = {};
+          init.headers = headers;
+        }
+        if (headers instanceof Headers) {
+          if (role && !headers.has('x-user-role')) headers.set('x-user-role', role);
+          if (user && !headers.has('x-user-name')) headers.set('x-user-name', user);
+          if (token && !headers.has('authorization')) headers.set('authorization', 'Bearer ' + token);
+        } else if (Array.isArray(headers)) {
+          if (role && !headers.some(([k]) => k.toLowerCase() === 'x-user-role')) headers.push(['x-user-role', role]);
+          if (user && !headers.some(([k]) => k.toLowerCase() === 'x-user-name')) headers.push(['x-user-name', user]);
+          if (token && !headers.some(([k]) => k.toLowerCase() === 'authorization')) headers.push(['authorization', 'Bearer ' + token]);
+        } else {
+          if (role && !headers['x-user-role']) headers['x-user-role'] = role;
+          if (user && !headers['x-user-name']) headers['x-user-name'] = user;
+          if (token && !headers['authorization']) headers['authorization'] = 'Bearer ' + token;
+        }
+      }
+    } catch (_) { }
+    return originalFetch.call(this, url, init);
+  };
+})();
+
 // Robust, high-capacity IndexedDB storage layer for large datasets (no 5MB quota limit)
 const CkgIdb = {
   dbName: 'CkgIndexedDb',
@@ -798,10 +833,10 @@ function handleLogin(e) {
     return;
   }
 
-  const dbPassword = (user.password || '').trim();
+  const hasPass = Boolean(user.has_password || (user.password && user.password.trim() !== ''));
 
   // If user has NO password ➔ login directly
-  if (dbPassword === '') {
+  if (!hasPass) {
     performLoginSuccess(user);
     return;
   }
@@ -830,20 +865,37 @@ function handleLogin(e) {
     cancelButtonColor: '#64748b',
     showLoaderOnConfirm: true,
     allowOutsideClick: () => !Swal.isLoading(),
-    preConfirm: (inputPass) => {
+    preConfirm: async (inputPass) => {
       if (!inputPass || inputPass.trim() === '') {
         Swal.showValidationMessage('Kata sandi tidak boleh kosong!');
         return false;
       }
-      if (inputPass.trim() !== dbPassword) {
-        Swal.showValidationMessage('Kata Sandi Yang Anda Masukan Salah');
+      try {
+        const res = await fetch('/api/users/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nama_user: user.nama_user,
+            password: inputPass.trim()
+          })
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          Swal.showValidationMessage(result.error || 'Kata Sandi Yang Anda Masukan Salah');
+          return false;
+        }
+        if (result.token) {
+          sessionStorage.setItem('ckg_auth_token', result.token);
+        }
+        return result.user || user;
+      } catch (err) {
+        Swal.showValidationMessage('Gagal verifikasi kata sandi: ' + err.message);
         return false;
       }
-      return inputPass;
     }
   }).then((result) => {
-    if (result.isConfirmed) {
-      performLoginSuccess(user);
+    if (result.isConfirmed && result.value) {
+      performLoginSuccess(result.value);
     }
   });
 }
@@ -985,17 +1037,29 @@ function openPuskesmasGate() {
     customClass: {
       popup: 'swal-modern-glass-popup'
     },
-    preConfirm: (inputPass) => {
+    showLoaderOnConfirm: true,
+    allowOutsideClick: () => !Swal.isLoading(),
+    preConfirm: async (inputPass) => {
       if (!inputPass || inputPass.trim() === '') {
         Swal.showValidationMessage('Kata sandi gerbang tidak boleh kosong!');
         return false;
       }
-      const targetPass = (gatePasswordPuskesmas || '213').trim();
-      if (inputPass.trim() !== targetPass) {
-        Swal.showValidationMessage('Kata Sandi Gerbang Puskesmas Salah!');
+      try {
+        const res = await fetch('/api/maintenance/verify-gate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: inputPass.trim() })
+        });
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          Swal.showValidationMessage(result.error || 'Kata Sandi Gerbang Puskesmas Salah!');
+          return false;
+        }
+        return inputPass;
+      } catch (err) {
+        Swal.showValidationMessage('Gagal verifikasi kata sandi gerbang: ' + err.message);
         return false;
       }
-      return inputPass;
     }
   }).then((result) => {
     if (result.isConfirmed) {
@@ -1212,8 +1276,8 @@ async function handleSekolahLogin(e) {
     return;
   }
 
-  const schoolPass = (school.password || '').trim();
-  if (!schoolPass) {
+  const hasSchoolPass = Boolean(school.has_password || (school.password && school.password.trim() !== ''));
+  if (!hasSchoolPass) {
     Swal.fire({
       icon: 'info',
       title: 'Akun Belum Diaktifkan',
@@ -1262,27 +1326,45 @@ async function handleSekolahLogin(e) {
     cancelButtonText: 'Batal',
     confirmButtonColor: '#2563eb',
     cancelButtonColor: '#64748b',
-    preConfirm: (inputPass) => {
+    showLoaderOnConfirm: true,
+    allowOutsideClick: () => !Swal.isLoading(),
+    preConfirm: async (inputPass) => {
       if (!inputPass || !inputPass.trim()) {
         Swal.showValidationMessage('Kata sandi tidak boleh kosong!');
         return false;
       }
-      if (inputPass.trim() !== schoolPass) {
-        Swal.showValidationMessage('Kata sandi yang Anda masukkan salah!');
+      try {
+        const res = await fetch('/api/master-sekolah/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nama: school.nama, password: inputPass.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          Swal.showValidationMessage(data.error || 'Kata sandi yang Anda masukkan salah!');
+          return false;
+        }
+        if (data.token) {
+          sessionStorage.setItem('ckg_auth_token', data.token);
+        }
+        return data.school || school;
+      } catch (err) {
+        Swal.showValidationMessage('Gagal verifikasi kata sandi sekolah: ' + err.message);
         return false;
       }
-      return inputPass.trim();
     }
   });
 
   if (!result.isConfirmed || !result.value) return;
+  const verifiedSchool = result.value;
 
   // Login Success as Sekolah!
   sessionStorage.setItem('ckg_logged_in', 'true');
   sessionStorage.setItem('ckg_portal_type', 'sekolah');
-  sessionStorage.setItem('ckg_user_name', school.nama);
+  sessionStorage.setItem('ckg_user_name', verifiedSchool.nama);
   sessionStorage.setItem('ckg_user_role', 'Sekolah');
-  sessionStorage.setItem('ckg_allowed_menus', school.allowed_menus || '[]');
+  sessionStorage.setItem('ckg_allowed_menus', verifiedSchool.allowed_menus || '[]');
+  sessionStorage.setItem('ckg_sekolah_filter', verifiedSchool.nama);
   sessionStorage.setItem('ckg_sekolah_filter', school.nama);
 
   showLoadingOverlay('Memverifikasi Akun...', `Login sebagai ${school.nama}`);
@@ -1351,12 +1433,12 @@ function handlePosyanduLogin(e) {
     return;
   }
 
-  const posPass = (posyandu.password || '').trim();
-  if (posPass === '') {
+  const hasPosPass = Boolean(posyandu.has_password || (posyandu.password && posyandu.password.trim() !== ''));
+  if (!hasPosPass) {
     Swal.fire({
       icon: 'info',
       title: 'Akun Belum Diaktifkan',
-      html: `Akun untuk <strong>${posyandu.nama}</strong> belum diatur kata sandinya oleh Administrator Puskesmas.<br><br><span style="font-size:12.5px; color:#64748b;">Silakan hubungi Admin Puskesmas Banjaran Kota untuk meminta aktivasi kata sandi.</span>`,
+      html: `Akun untuk <strong>${escapeHtml(posyandu.nama)}</strong> belum diatur kata sandinya oleh Administrator Puskesmas.<br><br><span style="font-size:12.5px; color:#64748b;">Silakan hubungi Admin Puskesmas Banjaran Kota untuk meminta aktivasi kata sandi.</span>`,
       confirmButtonColor: '#e11d48'
     });
     return;
@@ -1366,42 +1448,78 @@ function handlePosyanduLogin(e) {
     Swal.fire({
       icon: 'warning',
       title: 'Akun Dinonaktifkan',
-      html: `Akun untuk <strong>${posyandu.nama}</strong> saat ini dalam status nonaktif / terkunci. Silakan hubungi Administrator Puskesmas.`,
+      html: `Akun untuk <strong>${escapeHtml(posyandu.nama)}</strong> saat ini dalam status nonaktif / terkunci. Silakan hubungi Administrator Puskesmas.`,
       confirmButtonColor: '#f59e0b'
     });
     return;
   }
 
-  if (inputPass !== posPass) {
+  if (!inputPass) {
     Swal.fire({
-      icon: 'error',
-      title: 'Kata Sandi Salah',
-      text: 'Kata sandi Posyandu yang Anda masukkan salah. Silakan periksa kembali.',
-      confirmButtonColor: '#dc2626'
+      icon: 'warning',
+      title: 'Kata Sandi Kosong',
+      text: 'Silakan masukkan kata sandi Posyandu.',
+      confirmButtonColor: '#e11d48'
     });
     return;
   }
 
-  // Login Success as Posyandu!
-  sessionStorage.setItem('ckg_logged_in', 'true');
-  sessionStorage.setItem('ckg_portal_type', 'posyandu');
-  sessionStorage.setItem('ckg_user_name', posyandu.nama);
-  sessionStorage.setItem('ckg_user_role', 'Posyandu');
-  sessionStorage.setItem('ckg_allowed_menus', posyandu.allowed_menus || '[]');
-
   showLoadingOverlay('Memverifikasi Akun...', `Login sebagai ${posyandu.nama}`);
-  setTimeout(() => {
-    checkAuthSession();
-    fetchBotQueueCounts();
-    hideLoadingOverlay();
-    Swal.fire({
-      icon: 'success',
-      title: 'Selamat Datang!',
-      html: `Berhasil masuk ke portal CKG sebagai <strong>${posyandu.nama}</strong>`,
-      timer: 1600,
-      showConfirmButton: false
+  fetch('/api/master-posyandu/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: posyandu.id,
+      nama: posyandu.nama,
+      password: inputPass
+    })
+  })
+    .then(r => r.json())
+    .then(data => {
+      hideLoadingOverlay();
+      if (!data || !data.success) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Kata Sandi Salah',
+          text: data?.error || 'Kata sandi Posyandu yang Anda masukkan salah. Silakan periksa kembali.',
+          confirmButtonColor: '#dc2626'
+        });
+        return;
+      }
+
+      if (data.token) {
+        sessionStorage.setItem('ckg_auth_token', data.token);
+      }
+      const verifiedPos = data.posyandu || posyandu;
+
+      // Login Success as Posyandu!
+      sessionStorage.setItem('ckg_logged_in', 'true');
+      sessionStorage.setItem('ckg_portal_type', 'posyandu');
+      sessionStorage.setItem('ckg_user_name', verifiedPos.nama);
+      sessionStorage.setItem('ckg_user_role', 'Posyandu');
+      sessionStorage.setItem('ckg_allowed_menus', verifiedPos.allowed_menus || '[]');
+      sessionStorage.setItem('ckg_posyandu_filter', verifiedPos.nama);
+      sessionStorage.setItem('ckg_posyandu_desa', verifiedPos.desa || '');
+
+      checkAuthSession();
+      fetchBotQueueCounts();
+      Swal.fire({
+        icon: 'success',
+        title: 'Selamat Datang!',
+        html: `Berhasil masuk ke portal CKG sebagai <strong>${escapeHtml(verifiedPos.nama)}</strong>`,
+        timer: 1600,
+        showConfirmButton: false
+      });
+    })
+    .catch(err => {
+      hideLoadingOverlay();
+      Swal.fire({
+        icon: 'error',
+        title: 'Gagal Verifikasi',
+        text: 'Terjadi kesalahan jaringan saat verifikasi posyandu: ' + err.message,
+        confirmButtonColor: '#dc2626'
+      });
     });
-  }, 250);
 }
 
 
@@ -2598,7 +2716,8 @@ async function fetchCloudUsers() {
       if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
         usersDb = result.data.map(u => ({
           nama_user: u.nama_user || u.nama || u.username,
-          password: u.password || '',
+          has_password: Boolean(u.has_password || (u.password && u.password.trim() !== '')),
+          password: '',
           role: u.role || 'Petugas',
           is_banned: !!u.is_banned,
           banned_duration_label: u.banned_duration_label || ''

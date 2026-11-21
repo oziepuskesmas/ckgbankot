@@ -7,13 +7,64 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-user-role, x-user-name',
       'Content-Type': 'application/json'
     };
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
     }
+
+    // --- Cryptographic Auth Token Helpers (HMAC-SHA256 Stateless Session) ---
+    async function signAuthToken(payload, secret = 'ckg-secret-key-2025') {
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      const dataStr = JSON.stringify(payload);
+      const sigBuffer = await crypto.subtle.sign('HMAC', key, enc.encode(dataStr));
+      const sigBytes = new Uint8Array(sigBuffer);
+      let sigBinary = '';
+      for (let i = 0; i < sigBytes.length; i++) sigBinary += String.fromCharCode(sigBytes[i]);
+      const sigBase64 = btoa(sigBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const dataBase64 = btoa(unescape(encodeURIComponent(dataStr))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      return dataBase64 + '.' + sigBase64;
+    }
+
+    async function verifyAuthToken(token, secret = 'ckg-secret-key-2025') {
+      if (!token || typeof token !== 'string') return null;
+      const parts = token.split('.');
+      if (parts.length !== 2) return null;
+      try {
+        const [dataBase64, sigBase64] = parts;
+        const base64Data = dataBase64.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((dataBase64.length + 3) % 4);
+        const dataStr = decodeURIComponent(escape(atob(base64Data)));
+        const base64Sig = sigBase64.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((sigBase64.length + 3) % 4);
+        const sigBinaryStr = atob(base64Sig);
+        const sigBytes = new Uint8Array(sigBinaryStr.length);
+        for (let i = 0; i < sigBinaryStr.length; i++) sigBytes[i] = sigBinaryStr.charCodeAt(i);
+
+        const enc = new TextEncoder();
+        const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
+        const isValid = await crypto.subtle.verify('HMAC', key, sigBytes, enc.encode(dataStr));
+        if (!isValid) return null;
+        const parsed = JSON.parse(dataStr);
+        if (parsed.exp && Date.now() > parsed.exp) return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    const jwtSecret = env.JWT_SECRET || 'ckg-sec-key-banjaran-2025';
+    let authPayload = null;
+    const authHeader = request.headers.get('authorization') || '';
+    if (authHeader.startsWith('Bearer ')) {
+      authPayload = await verifyAuthToken(authHeader.substring(7), jwtSecret);
+    }
+    const reqRole = (authPayload?.role || request.headers.get('x-user-role') || '').toLowerCase();
+    const reqUser = (authPayload?.nama_user || request.headers.get('x-user-name') || '').toLowerCase();
+    const isAdmin = reqRole.includes('admin');
+    const isKoordinator = reqRole.includes('koordinator');
+    const isPrivileged = isAdmin || isKoordinator;
 
     // Ping route for latency checking
     if (url.pathname === '/api/ping') {
@@ -42,6 +93,41 @@ export default {
     }
 
     // 1. ROUTE: /api/users
+    if (url.pathname === '/api/users/verify' && request.method === 'POST') {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+      try {
+        const body = await request.json();
+        const targetName = String(body.nama_user || '').trim();
+        const inputPass = String(body.password || '').trim();
+        if (!targetName) {
+          return new Response(JSON.stringify({ success: false, error: 'Nama user diperlukan' }), { status: 400, headers: corsHeaders });
+        }
+        const user = await env.DB.prepare('SELECT nama_user, password, role FROM users WHERE LOWER(nama_user) = LOWER(?)').bind(targetName).first();
+        if (!user) {
+          return new Response(JSON.stringify({ success: false, error: 'User tidak ditemukan' }), { status: 404, headers: corsHeaders });
+        }
+        const dbPass = (user.password || '').trim();
+        if (dbPass === '' || dbPass === inputPass) {
+          const token = await signAuthToken({
+            nama_user: user.nama_user,
+            role: user.role || 'Petugas',
+            portal: 'puskesmas',
+            exp: Date.now() + (7 * 24 * 3600 * 1000)
+          }, jwtSecret);
+          return new Response(JSON.stringify({
+            success: true,
+            token,
+            user: { nama_user: user.nama_user, role: user.role || 'Petugas' }
+          }), { headers: corsHeaders });
+        }
+        return new Response(JSON.stringify({ success: false, error: 'Kata Sandi Yang Anda Masukan Salah' }), { status: 401, headers: corsHeaders });
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+      }
+    }
+
     if (url.pathname === '/api/users' || url.pathname.startsWith('/api/users/')) {
       if (!env.DB) {
         return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), {
@@ -52,7 +138,11 @@ export default {
 
       if (request.method === 'GET') {
         try {
-          const { results } = await env.DB.prepare('SELECT nama_user, password, role FROM users ORDER BY id ASC').all();
+          const { results } = await env.DB.prepare(`
+            SELECT id, nama_user, role,
+            CASE WHEN password IS NOT NULL AND TRIM(password) != '' THEN 1 ELSE 0 END AS has_password
+            FROM users ORDER BY id ASC
+          `).all();
           return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: corsHeaders });
         } catch (err) {
           return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
@@ -62,11 +152,30 @@ export default {
       if (request.method === 'POST') {
         try {
           const body = await request.json();
+
+          // Self password change by authenticated user
+          if (body && body.action === 'update_password') {
+            const targetUser = String(body.nama_user || '').trim();
+            if (!targetUser) {
+              return new Response(JSON.stringify({ success: false, error: 'nama_user required' }), { status: 400, headers: corsHeaders });
+            }
+            if (!isAdmin && reqUser !== targetUser.toLowerCase()) {
+              return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya pengguna bersangkutan atau Admin yang dapat mengganti password.' }), { status: 403, headers: corsHeaders });
+            }
+            await env.DB.prepare('UPDATE users SET password = ? WHERE LOWER(nama_user) = LOWER(?)').bind(body.password || '', targetUser).run();
+            return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+          }
+
+          // Adding or batch updating users requires Admin role
+          if (!isAdmin) {
+            return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang mengelola pengguna.' }), { status: 403, headers: corsHeaders });
+          }
+
           const users = Array.isArray(body) ? body : [body];
           const stmt = env.DB.prepare(`
             INSERT INTO users (nama_user, password, role) VALUES (?, ?, ?)
             ON CONFLICT(nama_user) DO UPDATE SET
-              password = excluded.password,
+              password = CASE WHEN excluded.password != '' THEN excluded.password ELSE users.password END,
               role = excluded.role
           `);
           const statements = users.map(u => stmt.bind(u.nama_user, u.password || '', u.role || 'Petugas'));
@@ -78,6 +187,9 @@ export default {
       }
 
       if (request.method === 'DELETE') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang menghapus user.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const nama_user = url.searchParams.get('nama_user');
           if (!nama_user) {
@@ -299,6 +411,9 @@ export default {
 
       // DELETE
       if (request.method === 'DELETE') {
+        if (!isPrivileged) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Otorisasi Admin atau Koordinator diperlukan untuk menghapus data SIMPUS.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           let body = null;
           try {
@@ -489,6 +604,9 @@ export default {
       }
 
       if (request.method === 'DELETE') {
+        if (!isPrivileged) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Otorisasi Admin atau Koordinator diperlukan untuk menghapus data CKG.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           let body = null;
           try {
@@ -710,6 +828,9 @@ export default {
       }
 
       if (request.method === 'DELETE') {
+        if (!isPrivileged) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Otorisasi Admin atau Koordinator diperlukan untuk menghapus data CKG Gratis.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           let body = null;
           try {
@@ -1074,6 +1195,10 @@ export default {
       }
 
       if (request.method === 'DELETE') {
+        const isSekolah = reqRole === 'sekolah';
+        if (!isPrivileged && !isSekolah) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Penghapusan data CKG Sekolah memerlukan otorisasi.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           let body = null;
           try {
@@ -1153,6 +1278,55 @@ export default {
       }
     }
 
+    // ROUTE: /api/master-sekolah/verify
+    if (url.pathname === '/api/master-sekolah/verify' && request.method === 'POST') {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+      try {
+        const body = await request.json();
+        const targetNama = String(body.nama || '').trim().toUpperCase();
+        const inputPass = String(body.password || '').trim();
+        if (!targetNama) {
+          return new Response(JSON.stringify({ success: false, error: 'Nama sekolah diperlukan' }), { status: 400, headers: corsHeaders });
+        }
+        const school = await env.DB.prepare('SELECT id, nama, level, password, allowed_menus, is_active FROM master_sekolah WHERE UPPER(nama) = ?').bind(targetNama).first();
+        if (!school) {
+          return new Response(JSON.stringify({ success: false, error: 'Data sekolah tidak ditemukan' }), { status: 404, headers: corsHeaders });
+        }
+        if (school.is_active === 0) {
+          return new Response(JSON.stringify({ success: false, error: 'Akun sekolah sedang dinonaktifkan / terkunci' }), { status: 403, headers: corsHeaders });
+        }
+        const dbPass = (school.password || '').trim();
+        if (!dbPass) {
+          return new Response(JSON.stringify({ success: false, error: 'Akun belum diatur kata sandinya oleh Admin' }), { status: 400, headers: corsHeaders });
+        }
+        if (inputPass === dbPass) {
+          const token = await signAuthToken({
+            nama_user: school.nama,
+            role: 'Sekolah',
+            portal: 'sekolah',
+            school_id: school.id,
+            exp: Date.now() + (7 * 24 * 3600 * 1000)
+          }, jwtSecret);
+          return new Response(JSON.stringify({
+            success: true,
+            token,
+            school: {
+              id: school.id,
+              nama: school.nama,
+              level: school.level,
+              allowed_menus: school.allowed_menus,
+              is_active: school.is_active
+            }
+          }), { headers: corsHeaders });
+        }
+        return new Response(JSON.stringify({ success: false, error: 'Kata sandi yang Anda masukkan salah!' }), { status: 401, headers: corsHeaders });
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+      }
+    }
+
     // 4.1 ROUTE: /api/master-sekolah (Pengelolaan Master Data Sekolah: Tambah, Edit, Hapus, Password & Akses)
     if (url.pathname === '/api/master-sekolah' || url.pathname.startsWith('/api/master-sekolah/')) {
       if (!env.DB) {
@@ -1180,7 +1354,7 @@ export default {
       // GET: Ambil daftar seluruh sekolah master
       if (request.method === 'GET') {
         try {
-          let { results } = await env.DB.prepare('SELECT id, nama, level, password, allowed_menus, is_active, created_at FROM master_sekolah ORDER BY level ASC, nama ASC').all();
+          let { results } = await env.DB.prepare('SELECT id, nama, level, CASE WHEN password IS NOT NULL AND TRIM(password) != \'\' THEN 1 ELSE 0 END AS has_password, allowed_menus, is_active, created_at FROM master_sekolah ORDER BY level ASC, nama ASC').all();
 
           // Auto-seed default 35 schools jika tabel masih kosong
           if (!results || results.length === 0) {
@@ -1229,7 +1403,7 @@ export default {
             const insertStmt = env.DB.prepare('INSERT OR IGNORE INTO master_sekolah (nama, level) VALUES (?, ?)');
             const stmts = defaultSchools.map(s => insertStmt.bind(s.nama, s.level));
             await env.DB.batch(stmts);
-            const refetched = await env.DB.prepare('SELECT id, nama, level, password, allowed_menus, is_active, created_at FROM master_sekolah ORDER BY level ASC, nama ASC').all();
+            const refetched = await env.DB.prepare('SELECT id, nama, level, CASE WHEN password IS NOT NULL AND TRIM(password) != \'\' THEN 1 ELSE 0 END AS has_password, allowed_menus, is_active, created_at FROM master_sekolah ORDER BY level ASC, nama ASC').all();
             results = refetched.results || [];
           }
 
@@ -1241,6 +1415,9 @@ export default {
 
       // POST: Tambah sekolah baru (atau batch seed)
       if (request.method === 'POST') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang menambah master sekolah.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const body = await request.json();
           const items = Array.isArray(body) ? body : [body];
@@ -1268,6 +1445,9 @@ export default {
 
       // PUT: Edit sekolah (Nama/Level, atau Password, Hak Akses, Status Aktif)
       if (request.method === 'PUT' || request.method === 'PATCH') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang mengubah master sekolah.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const body = await request.json();
           const targetNama = (body.oldNama || body.nama || '').trim().toUpperCase();
@@ -1279,7 +1459,7 @@ export default {
           if (body.password !== undefined || body.allowed_menus !== undefined || body.is_active !== undefined) {
             const updates = [];
             const params = [];
-            if (body.password !== undefined) {
+            if (body.password !== undefined && String(body.password).trim() !== '') {
               updates.push('password = ?');
               params.push(String(body.password).trim());
             }
@@ -1326,6 +1506,9 @@ export default {
 
       // DELETE: Hapus sekolah dari master data
       if (request.method === 'DELETE') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang menghapus master sekolah.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const nama = url.searchParams.get('nama');
           if (!nama) {
@@ -1340,6 +1523,65 @@ export default {
     }
 
 
+
+    // ROUTE: /api/master-posyandu/verify
+    if (url.pathname === '/api/master-posyandu/verify' && request.method === 'POST') {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+      try {
+        const body = await request.json();
+        const id = body.id;
+        const targetNama = String(body.nama || '').trim();
+        const inputPass = String(body.password || '').trim();
+        let query = 'SELECT id, nama, desa, rw, password, allowed_menus, is_active FROM master_posyandu WHERE ';
+        let param = '';
+        if (id) {
+          query += 'id = ?';
+          param = id;
+        } else if (targetNama) {
+          query += 'UPPER(nama) = UPPER(?)';
+          param = targetNama;
+        } else {
+          return new Response(JSON.stringify({ success: false, error: 'ID atau nama posyandu diperlukan' }), { status: 400, headers: corsHeaders });
+        }
+        const posyandu = await env.DB.prepare(query).bind(param).first();
+        if (!posyandu) {
+          return new Response(JSON.stringify({ success: false, error: 'Data posyandu tidak ditemukan' }), { status: 404, headers: corsHeaders });
+        }
+        if (posyandu.is_active === 0) {
+          return new Response(JSON.stringify({ success: false, error: 'Akun posyandu sedang dinonaktifkan / terkunci' }), { status: 403, headers: corsHeaders });
+        }
+        const dbPass = (posyandu.password || '').trim();
+        if (!dbPass) {
+          return new Response(JSON.stringify({ success: false, error: 'Akun belum diatur kata sandinya oleh Admin' }), { status: 400, headers: corsHeaders });
+        }
+        if (inputPass === dbPass) {
+          const token = await signAuthToken({
+            nama_user: posyandu.nama,
+            role: 'Posyandu',
+            portal: 'posyandu',
+            posyandu_id: posyandu.id,
+            exp: Date.now() + (7 * 24 * 3600 * 1000)
+          }, jwtSecret);
+          return new Response(JSON.stringify({
+            success: true,
+            token,
+            posyandu: {
+              id: posyandu.id,
+              nama: posyandu.nama,
+              desa: posyandu.desa,
+              rw: posyandu.rw,
+              allowed_menus: posyandu.allowed_menus,
+              is_active: posyandu.is_active
+            }
+          }), { headers: corsHeaders });
+        }
+        return new Response(JSON.stringify({ success: false, error: 'Kata sandi Posyandu yang Anda masukkan salah.' }), { status: 401, headers: corsHeaders });
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+      }
+    }
 
     // 4.2 ROUTE: /api/master-posyandu (Pengelolaan Master Data Posyandu: Tambah, Edit, Hapus, Password & Akses)
     if (url.pathname === '/api/master-posyandu' || url.pathname.startsWith('/api/master-posyandu/')) {
@@ -1365,7 +1607,7 @@ export default {
       // GET: Ambil daftar seluruh posyandu
       if (request.method === 'GET') {
         try {
-          let { results } = await env.DB.prepare('SELECT id, nama, desa, rw, password, allowed_menus, is_active, created_at FROM master_posyandu ORDER BY desa ASC, nama ASC').all();
+          let { results } = await env.DB.prepare('SELECT id, nama, desa, rw, CASE WHEN password IS NOT NULL AND TRIM(password) != \'\' THEN 1 ELSE 0 END AS has_password, allowed_menus, is_active, created_at FROM master_posyandu ORDER BY desa ASC, nama ASC').all();
 
           // Auto-seed default Posyandu untuk wilayah Banjaran jika masih kosong
           if (!results || results.length === 0) {
@@ -1387,7 +1629,7 @@ export default {
             const insertStmt = env.DB.prepare('INSERT OR IGNORE INTO master_posyandu (nama, desa, rw) VALUES (?, ?, ?)');
             const stmts = defaultPosyandu.map(p => insertStmt.bind(p.nama, p.desa, p.rw));
             await env.DB.batch(stmts);
-            const refetched = await env.DB.prepare('SELECT id, nama, desa, rw, password, allowed_menus, is_active, created_at FROM master_posyandu ORDER BY desa ASC, nama ASC').all();
+            const refetched = await env.DB.prepare('SELECT id, nama, desa, rw, CASE WHEN password IS NOT NULL AND TRIM(password) != \'\' THEN 1 ELSE 0 END AS has_password, allowed_menus, is_active, created_at FROM master_posyandu ORDER BY desa ASC, nama ASC').all();
             results = refetched.results || [];
           }
 
@@ -1399,6 +1641,9 @@ export default {
 
       // POST: Tambah posyandu baru
       if (request.method === 'POST') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang menambah master posyandu.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const body = await request.json();
           const nama = (body.nama || '').trim();
@@ -1418,7 +1663,7 @@ export default {
             ON CONFLICT(nama) DO UPDATE SET
               desa = excluded.desa,
               rw = excluded.rw,
-              password = excluded.password,
+              password = CASE WHEN excluded.password != '' THEN excluded.password ELSE master_posyandu.password END,
               allowed_menus = excluded.allowed_menus,
               is_active = excluded.is_active
           `).bind(nama, desa, rw, password, allowed_menus, is_active).run();
@@ -1431,6 +1676,9 @@ export default {
 
       // PUT / PATCH: Update posyandu (password, allowed_menus, is_active, nama, desa)
       if (request.method === 'PUT' || request.method === 'PATCH') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang mengubah master posyandu.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const body = await request.json();
           const id = body.id;
@@ -1446,7 +1694,7 @@ export default {
           if (body.newNama !== undefined && body.newNama.trim()) { updates.push('nama = ?'); params.push(body.newNama.trim()); }
           if (body.desa !== undefined) { updates.push('desa = ?'); params.push(body.desa.trim()); }
           if (body.rw !== undefined) { updates.push('rw = ?'); params.push(body.rw.trim()); }
-          if (body.password !== undefined) { updates.push('password = ?'); params.push(String(body.password).trim()); }
+          if (body.password !== undefined && String(body.password).trim() !== '') { updates.push('password = ?'); params.push(String(body.password).trim()); }
           if (body.allowed_menus !== undefined) {
             updates.push('allowed_menus = ?');
             params.push(typeof body.allowed_menus === 'string' ? body.allowed_menus : JSON.stringify(body.allowed_menus));
@@ -1473,6 +1721,9 @@ export default {
 
       // DELETE: Hapus posyandu
       if (request.method === 'DELETE') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang menghapus master posyandu.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const id = url.searchParams.get('id');
           const nama = url.searchParams.get('nama');
@@ -1687,6 +1938,25 @@ export default {
       }
     }
 
+    // ROUTE: /api/maintenance/verify-gate
+    if (url.pathname === '/api/maintenance/verify-gate' && request.method === 'POST') {
+      if (!env.DB) {
+        return new Response(JSON.stringify({ success: false, error: 'Database D1 binding not configured' }), { status: 500, headers: corsHeaders });
+      }
+      try {
+        const body = await request.json();
+        const inputPass = String(body.password || '').trim();
+        const row = await env.DB.prepare("SELECT value FROM maintenance_settings WHERE key = 'gate_password_puskesmas'").first();
+        const realPass = (row && row.value ? row.value : '213').trim();
+        if (inputPass && inputPass === realPass) {
+          return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+        }
+        return new Response(JSON.stringify({ success: false, error: 'Kata Sandi Gerbang Puskesmas Salah!' }), { status: 401, headers: corsHeaders });
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
+      }
+    }
+
     // 7. ROUTE: /api/maintenance (Maintenance Mode Settings)
     if (url.pathname === '/api/maintenance' || url.pathname.startsWith('/api/maintenance/')) {
       if (!env.DB) {
@@ -1708,20 +1978,27 @@ export default {
           const { results } = await env.DB.prepare('SELECT key, value FROM maintenance_settings').all();
           const settings = {};
           (results || []).forEach(r => { settings[r.key] = r.value; });
-          return new Response(JSON.stringify({
+          const responseData = {
             success: true,
             maintenance_web: settings['maintenance_web'] === 'true',
             maintenance_web_message: settings['maintenance_web_message'] || 'Sistem sedang dalam maintenance. Silakan coba beberapa saat lagi.',
             locked_menus: settings['locked_menus'] ? JSON.parse(settings['locked_menus']) : [],
-            maintenance_menu_message: settings['maintenance_menu_message'] || 'Menu ini sedang dalam maintenance oleh Admin.',
-            gate_password_puskesmas: settings['gate_password_puskesmas'] || '213'
-          }), { headers: corsHeaders });
+            maintenance_menu_message: settings['maintenance_menu_message'] || 'Menu ini sedang dalam maintenance oleh Admin.'
+          };
+          // Gate password is only disclosed to authenticated Admin
+          if (isAdmin) {
+            responseData.gate_password_puskesmas = settings['gate_password_puskesmas'] || '213';
+          }
+          return new Response(JSON.stringify(responseData), { headers: corsHeaders });
         } catch (err) {
           return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500, headers: corsHeaders });
         }
       }
 
       if (request.method === 'POST') {
+        if (!isAdmin) {
+          return new Response(JSON.stringify({ success: false, error: 'Akses ditolak: Hanya Administrator yang berwenang mengubah pengaturan sistem.' }), { status: 403, headers: corsHeaders });
+        }
         try {
           const body = await request.json();
           const now = new Date().toISOString();
@@ -1799,8 +2076,7 @@ export default {
       }
 
       if (request.method === 'POST') {
-        const userRole = (request.headers.get('x-user-role') || '').toLowerCase();
-        if (userRole && !userRole.includes('admin') && !userRole.includes('koordinator') && userRole !== 'petugas') {
+        if (!isPrivileged) {
           return new Response(JSON.stringify({ 
             success: false, 
             error: 'Akses ditolak: Hanya role Admin / Koordinator yang berwenang mengubah konfigurasi menu navigasi.' 

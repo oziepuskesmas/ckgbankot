@@ -1140,7 +1140,8 @@ function openEditUserModal(namaUser) {
 
   document.getElementById('editingUserOriginalName').value = namaUser;
   document.getElementById('newNamaUser').value = user.nama_user;
-  document.getElementById('newPassword').value = user.password || '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('newPassword').placeholder = user.has_password ? '(Biarkan kosong jika tidak diubah)' : 'Masukkan password baru...';
   document.getElementById('newRole').value = user.role || 'Petugas';
 
   const titleEl = document.getElementById('userModalTitle');
@@ -1178,7 +1179,13 @@ function handleAddUserSubmit(e) {
 
     const index = usersDb.findIndex(u => u.nama_user === originalName);
     if (index !== -1) {
-      usersDb[index] = { nama_user: namaUser, password: password, role: role };
+      const oldUser = usersDb[index];
+      usersDb[index] = {
+        nama_user: namaUser,
+        password: password,
+        role: role,
+        has_password: password ? true : Boolean(oldUser.has_password)
+      };
     }
 
     if (originalName !== namaUser) {
@@ -1191,7 +1198,12 @@ function handleAddUserSubmit(e) {
       return;
     }
 
-    const newUser = { nama_user: namaUser, password: password, role: role };
+    const newUser = {
+      nama_user: namaUser,
+      password: password,
+      role: role,
+      has_password: Boolean(password)
+    };
     usersDb.unshift(newUser);
   }
 
@@ -2080,16 +2092,12 @@ function renderUserDatabaseTable() {
       sessionStatusHtml = `<span class="badge badge-rose" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca;"><i class="bi bi-slash-circle-fill"></i> Banned (${u.banned_duration_label || 'Nonaktif'})</span>`;
     }
 
-    const safePassword = String(u.password || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    const hasPassword = Boolean(u.password && String(u.password).trim().length > 0);
+    const hasPassword = Boolean(u.has_password || (u.password && String(u.password).trim().length > 0));
 
     const passwordDisplayHtml = hasPassword ? `
-      <div style="display: inline-flex; align-items: center; gap: 6px; background: #f8fafc; padding: 4px 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-        <code id="passCode_${i}" style="color: #dc2626; font-weight: 800; font-family: monospace; font-size: 13px; letter-spacing: 2px;">••••••••</code>
-        <button type="button" onclick="toggleTablePasswordVisibility('${i}', '${safePassword}')" style="border: none; background: transparent; cursor: pointer; color: #64748b; padding: 0 2px; font-size: 13px; display: inline-flex; align-items: center;" title="Lihat/Sembunyikan Password">
-          <i id="eyeIcon_${i}" class="bi bi-eye-slash-fill"></i>
-        </button>
-      </div>
+      <span class="badge" style="display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-weight: 600; padding: 4px 10px; border-radius: 20px; font-size: 11.5px;">
+        <i class="bi bi-shield-lock-fill" style="color: #2563eb;"></i> Terproteksi
+      </span>
     ` : '<span style="font-size: 11px; color: var(--text-muted); font-style: italic;">Tanpa Password</span>';
 
     return `

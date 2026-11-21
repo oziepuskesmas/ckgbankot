@@ -530,7 +530,7 @@ function renderAdminSekolahTable() {
   }
 
   tbody.innerHTML = filtered.map((s, idx) => {
-    const hasPassword = s.password && s.password.trim() !== '';
+    const hasPassword = Boolean(s.has_password || (s.password && s.password.trim() !== ''));
     const passBadge = hasPassword
       ? `<span class="badge badge-emerald" style="font-size: 11px;"><i class="bi bi-shield-check"></i> Sudah Diset</span>`
       : `<span class="badge badge-rose" style="font-size: 11px;"><i class="bi bi-shield-slash"></i> Belum Diset</span>`;
@@ -582,8 +582,9 @@ function openEditSekolahAksesModal(encodedNama) {
   document.getElementById('editAksesSekolahNama').value = school.nama;
   document.getElementById('editAksesSekolahLabel').textContent = school.nama;
   document.getElementById('editAksesSekolahLevelBadge').textContent = `Tingkat: ${school.level}`;
-  document.getElementById('editAksesSekolahPassword').value = school.password || '';
-  document.getElementById('editAksesSekolahStatus').value = (school.is_active !== undefined) ? String(school.is_active) : (school.password ? '1' : '0');
+  document.getElementById('editAksesSekolahPassword').value = '';
+  document.getElementById('editAksesSekolahPassword').placeholder = school.has_password ? '(Biarkan kosong jika tidak diubah)' : 'Masukkan kata sandi baru...';
+  document.getElementById('editAksesSekolahStatus').value = (school.is_active !== undefined) ? String(school.is_active) : (school.has_password ? '1' : '0');
 
   let allowedArr = [];
   try {
@@ -696,7 +697,7 @@ function renderAdminPosyanduTable() {
   }
 
   tbody.innerHTML = filtered.map((p, idx) => {
-    const hasPassword = p.password && p.password.trim() !== '';
+    const hasPassword = Boolean(p.has_password || (p.password && p.password.trim() !== ''));
     const passBadge = hasPassword
       ? `<span class="badge badge-emerald" style="font-size: 11px;"><i class="bi bi-shield-check"></i> Sudah Diset</span>`
       : `<span class="badge badge-rose" style="font-size: 11px;"><i class="bi bi-shield-slash"></i> Belum Diset</span>`;
@@ -752,8 +753,9 @@ function openEditPosyanduAksesModal(id) {
   document.getElementById('editAksesPosyanduId').value = posyandu.id;
   document.getElementById('editAksesPosyanduLabel').textContent = posyandu.nama;
   document.getElementById('editAksesPosyanduDesaBadge').textContent = `Desa: ${posyandu.desa || '-'} • RW: ${posyandu.rw || '-'}`;
-  document.getElementById('editAksesPosyanduPassword').value = posyandu.password || '';
-  document.getElementById('editAksesPosyanduStatus').value = (posyandu.is_active !== undefined) ? String(posyandu.is_active) : (posyandu.password ? '1' : '0');
+  document.getElementById('editAksesPosyanduPassword').value = '';
+  document.getElementById('editAksesPosyanduPassword').placeholder = posyandu.has_password ? '(Biarkan kosong jika tidak diubah)' : 'Masukkan kata sandi baru...';
+  document.getElementById('editAksesPosyanduStatus').value = (posyandu.is_active !== undefined) ? String(posyandu.is_active) : (posyandu.has_password ? '1' : '0');
 
   let allowedArr = [];
   try {
