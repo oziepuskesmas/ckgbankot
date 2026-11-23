@@ -207,6 +207,376 @@ document.addEventListener('click', function (e) {
 // --------------------------------------------------------------------------
 // 🌐 UNIVERSAL CASCADING WILAYAH LOGIC (SE-INDONESIA EMSIFA API & CACHE)
 // --------------------------------------------------------------------------
+if (typeof escapeHtml !== 'function') {
+  window.escapeHtml = function (str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+}
+
+// ==========================================================================
+// 🏛️ CUSTOM WILAYAH STORAGE (PERSISTENSI PILIHAN MANUAL OLEH PENGGUNA)
+// ==========================================================================
+const CKG_CUSTOM_WILAYAH_KEY = 'ckg_custom_wilayah_data_v1';
+
+function getCustomWilayahStorage() {
+  try {
+    const raw = localStorage.getItem(CKG_CUSTOM_WILAYAH_KEY);
+    if (!raw) return { provinsi: [], kab_kota: {}, kecamatan: {}, kelurahan: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      provinsi: Array.isArray(parsed.provinsi) ? parsed.provinsi : [],
+      kab_kota: (parsed.kab_kota && typeof parsed.kab_kota === 'object') ? parsed.kab_kota : {},
+      kecamatan: (parsed.kecamatan && typeof parsed.kecamatan === 'object') ? parsed.kecamatan : {},
+      kelurahan: (parsed.kelurahan && typeof parsed.kelurahan === 'object') ? parsed.kelurahan : {}
+    };
+  } catch (e) {
+    console.warn('Error reading custom wilayah storage:', e);
+    return { provinsi: [], kab_kota: {}, kecamatan: {}, kelurahan: {} };
+  }
+}
+
+function saveCustomWilayahStorage(data) {
+  try {
+    localStorage.setItem(CKG_CUSTOM_WILAYAH_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Error saving custom wilayah storage:', e);
+  }
+}
+
+function getCustomProvinsiList() {
+  const data = getCustomWilayahStorage();
+  return (data.provinsi || []).filter(Boolean);
+}
+
+function addCustomProvinsi(name) {
+  name = toTitleCase(String(name || '').trim());
+  if (!name || name === '__manual__') return '';
+  const data = getCustomWilayahStorage();
+  if (!data.provinsi.some(p => p.toLowerCase() === name.toLowerCase())) {
+    data.provinsi.push(name);
+    data.provinsi.sort((a, b) => a.localeCompare(b));
+    saveCustomWilayahStorage(data);
+  }
+  return name;
+}
+
+function getCustomKabKotaList(provName) {
+  const data = getCustomWilayahStorage();
+  const res = new Set();
+  const pKey = (provName || '').trim().toLowerCase();
+  if (pKey && data.kab_kota[pKey]) {
+    data.kab_kota[pKey].forEach(k => res.add(k));
+  }
+  if (data.kab_kota['_all']) {
+    data.kab_kota['_all'].forEach(k => res.add(k));
+  }
+  return Array.from(res).sort((a, b) => a.localeCompare(b));
+}
+
+function addCustomKabKota(provName, name) {
+  name = toTitleCase(String(name || '').trim());
+  if (!name || name === '__manual__') return '';
+  const data = getCustomWilayahStorage();
+  const pKey = (provName || '_all').trim().toLowerCase();
+  if (!data.kab_kota[pKey]) data.kab_kota[pKey] = [];
+  if (!data.kab_kota[pKey].some(k => k.toLowerCase() === name.toLowerCase())) {
+    data.kab_kota[pKey].push(name);
+    data.kab_kota[pKey].sort((a, b) => a.localeCompare(b));
+    saveCustomWilayahStorage(data);
+  }
+  return name;
+}
+
+function getCustomKecamatanList(provName, kabName) {
+  const data = getCustomWilayahStorage();
+  const res = new Set();
+  const pKey = (provName || '').trim().toLowerCase();
+  const kKey = (kabName || '').trim().toLowerCase();
+  const comboKey = `${pKey}|${kKey}`;
+  if (data.kecamatan[comboKey]) {
+    data.kecamatan[comboKey].forEach(k => res.add(k));
+  }
+  if (kKey && data.kecamatan[kKey]) {
+    data.kecamatan[kKey].forEach(k => res.add(k));
+  }
+  if (data.kecamatan['_all']) {
+    data.kecamatan['_all'].forEach(k => res.add(k));
+  }
+  return Array.from(res).sort((a, b) => a.localeCompare(b));
+}
+
+function addCustomKecamatan(provName, kabName, name) {
+  name = toTitleCase(String(name || '').trim());
+  if (!name || name === '__manual__') return '';
+  const data = getCustomWilayahStorage();
+  const pKey = (provName || '').trim().toLowerCase();
+  const kKey = (kabName || '_all').trim().toLowerCase();
+  const comboKey = `${pKey}|${kKey}`;
+  if (!data.kecamatan[comboKey]) data.kecamatan[comboKey] = [];
+  if (!data.kecamatan[comboKey].some(k => k.toLowerCase() === name.toLowerCase())) {
+    data.kecamatan[comboKey].push(name);
+    data.kecamatan[comboKey].sort((a, b) => a.localeCompare(b));
+    saveCustomWilayahStorage(data);
+  }
+  return name;
+}
+
+function getCustomKelurahanList(provName, kabName, kecName) {
+  const data = getCustomWilayahStorage();
+  const res = new Set();
+  const kKey = (kabName || '').trim().toLowerCase();
+  const cKey = (kecName || '').trim().toLowerCase();
+  const comboKey = `${kKey}|${cKey}`;
+  if (data.kelurahan[comboKey]) {
+    data.kelurahan[comboKey].forEach(k => res.add(k));
+  }
+  if (cKey && data.kelurahan[cKey]) {
+    data.kelurahan[cKey].forEach(k => res.add(k));
+  }
+  if (data.kelurahan['_all']) {
+    data.kelurahan['_all'].forEach(k => res.add(k));
+  }
+  return Array.from(res).sort((a, b) => a.localeCompare(b));
+}
+
+function addCustomKelurahan(provName, kabName, kecName, name) {
+  name = toTitleCase(String(name || '').trim());
+  if (!name || name === '__manual__') return '';
+  const data = getCustomWilayahStorage();
+  const kKey = (kabName || '').trim().toLowerCase();
+  const cKey = (kecName || '_all').trim().toLowerCase();
+  const comboKey = `${kKey}|${cKey}`;
+  if (!data.kelurahan[comboKey]) data.kelurahan[comboKey] = [];
+  if (!data.kelurahan[comboKey].some(k => k.toLowerCase() === name.toLowerCase())) {
+    data.kelurahan[comboKey].push(name);
+    data.kelurahan[comboKey].sort((a, b) => a.localeCompare(b));
+    saveCustomWilayahStorage(data);
+  }
+  return name;
+}
+
+// --------------------------------------------------------------------------
+// ✍️ DIALOG PENGISIAN MANUAL WILAYAH (SWEETALERT2 INTERACTIVE PROMPT)
+// --------------------------------------------------------------------------
+async function triggerManualWilayahInput(selectId, tier) {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+
+  if (selectEl.disabled) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Kolom Terkunci',
+        text: selectEl.title || 'Kolom wilayah saat ini masih terkunci. Harap lakukan Cek NIK terlebih dahulu.',
+        confirmButtonColor: '#059669'
+      });
+    }
+    if (selectEl.value === '__manual__') {
+      selectEl.value = selectEl._lastValidValue || '';
+      syncWilayahComboboxUI(selectEl.id);
+    }
+    return;
+  }
+
+  const group = selectEl._cascadeGroup;
+  const provSelect = group ? group.provSelect : document.getElementById('provinsi');
+  const kabSelect = group ? group.kabSelect : document.getElementById('kab_kota');
+  const kecSelect = group ? group.kecSelect : document.getElementById('kecamatan');
+  const kelSelect = group ? group.kelSelect : document.getElementById('kelurahan');
+
+  const provVal = (provSelect?.value && provSelect.value !== '__manual__') ? provSelect.value : '';
+  const kabVal = (kabSelect?.value && kabSelect.value !== '__manual__') ? kabSelect.value : '';
+  const kecVal = (kecSelect?.value && kecSelect.value !== '__manual__') ? kecSelect.value : '';
+
+  if (tier === 'kab_kota' && !provVal) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Pilih Provinsi Dulu',
+        text: 'Silakan pilih atau isi nama Provinsi terlebih dahulu sebelum menambahkan Kab/Kota.',
+        confirmButtonColor: '#059669'
+      });
+    }
+    if (selectEl.value === '__manual__') {
+      selectEl.value = selectEl._lastValidValue || '';
+      syncWilayahComboboxUI(selectEl.id);
+    }
+    return;
+  }
+
+  if (tier === 'kecamatan' && !kabVal) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Pilih Kab/Kota Dulu',
+        text: 'Silakan pilih atau isi nama Kabupaten / Kota terlebih dahulu sebelum menambahkan Kecamatan.',
+        confirmButtonColor: '#059669'
+      });
+    }
+    if (selectEl.value === '__manual__') {
+      selectEl.value = selectEl._lastValidValue || '';
+      syncWilayahComboboxUI(selectEl.id);
+    }
+    return;
+  }
+
+  if (tier === 'kelurahan' && !kecVal) {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Pilih Kecamatan Dulu',
+        text: 'Silakan pilih atau isi nama Kecamatan terlebih dahulu sebelum menambahkan Desa / Kelurahan.',
+        confirmButtonColor: '#059669'
+      });
+    }
+    if (selectEl.value === '__manual__') {
+      selectEl.value = selectEl._lastValidValue || '';
+      syncWilayahComboboxUI(selectEl.id);
+    }
+    return;
+  }
+
+  const config = {
+    provinsi: {
+      title: 'Isi Manual Nama Provinsi',
+      info: 'Nama provinsi baru akan otomatis disimpan dan tersedia pada pilihan selanjutnya.',
+      placeholder: 'Contoh: Papua Barat Daya',
+      icon: 'bi-geo-alt-fill'
+    },
+    kab_kota: {
+      title: 'Isi Manual Kabupaten / Kota',
+      info: `Provinsi: <strong>${escapeHtml(provVal)}</strong><br>Nama Kab/Kota akan disimpan dan tersedia pada pilihan selanjutnya.`,
+      placeholder: 'Contoh: Kabupaten Bandung Barat',
+      icon: 'bi-buildings-fill'
+    },
+    kecamatan: {
+      title: 'Isi Manual Kecamatan',
+      info: `Kab/Kota: <strong>${escapeHtml(kabVal)}</strong> &bull; Provinsi: <strong>${escapeHtml(provVal)}</strong><br>Nama kecamatan akan disimpan dan tersedia pada pilihan selanjutnya.`,
+      placeholder: 'Contoh: Bojongsoang',
+      icon: 'bi-pin-map-fill'
+    },
+    kelurahan: {
+      title: 'Isi Manual Desa / Kelurahan',
+      info: `Kecamatan: <strong>${escapeHtml(kecVal)}</strong> &bull; Kab/Kota: <strong>${escapeHtml(kabVal)}</strong><br>Nama desa/kelurahan akan disimpan dan tersedia pada pilihan selanjutnya.`,
+      placeholder: 'Contoh: Desa Karangmulya',
+      icon: 'bi-house-door-fill'
+    }
+  };
+
+  const cfg = config[tier] || config.provinsi;
+
+  if (typeof Swal === 'undefined') {
+    const entered = window.prompt(`${cfg.title}\n${cfg.placeholder}:`);
+    if (entered && entered.trim()) {
+      await handleApplyManualWilayah(selectEl, tier, entered.trim(), group, provVal, kabVal, kecVal);
+    } else if (selectEl.value === '__manual__') {
+      selectEl.value = selectEl._lastValidValue || '';
+      syncWilayahComboboxUI(selectEl.id);
+    }
+    return;
+  }
+
+  const { value: customInput, isConfirmed } = await Swal.fire({
+    title: `<i class="bi ${cfg.icon}" style="color: #059669; margin-right: 6px;"></i> ${cfg.title}`,
+    html: `
+      <div style="font-size: 13px; color: #475569; margin-bottom: 12px; text-align: left; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 10px 14px; border-radius: 8px;">
+        ${cfg.info}
+      </div>
+      <div style="text-align: left; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">Nama Wilayah Baru:</div>
+    `,
+    input: 'text',
+    inputPlaceholder: cfg.placeholder,
+    showCancelButton: true,
+    confirmButtonText: '<i class="bi bi-check-lg"></i> Simpan & Gunakan',
+    cancelButtonText: 'Batal',
+    confirmButtonColor: '#059669',
+    cancelButtonColor: '#64748b',
+    inputValidator: (val) => {
+      const v = (val || '').trim();
+      if (!v) return 'Nama wilayah tidak boleh kosong!';
+      if (v.length < 2) return 'Nama wilayah minimal 2 karakter!';
+      if (v.toLowerCase() === '__manual__') return 'Nama tidak valid!';
+    }
+  });
+
+  if (isConfirmed && customInput && customInput.trim()) {
+    await handleApplyManualWilayah(selectEl, tier, customInput.trim(), group, provVal, kabVal, kecVal);
+  } else {
+    if (selectEl.value === '__manual__') {
+      selectEl.value = selectEl._lastValidValue || '';
+      syncWilayahComboboxUI(selectEl.id);
+    }
+  }
+}
+
+async function handleApplyManualWilayah(selectEl, tier, rawName, group, provVal, kabVal, kecVal) {
+  const cleanName = toTitleCase(rawName.trim());
+  if (!cleanName) return;
+
+  // 1. Simpan ke storage custom
+  if (tier === 'provinsi') {
+    addCustomProvinsi(cleanName);
+  } else if (tier === 'kab_kota') {
+    addCustomKabKota(provVal, cleanName);
+  } else if (tier === 'kecamatan') {
+    addCustomKecamatan(provVal, kabVal, cleanName);
+  } else if (tier === 'kelurahan') {
+    addCustomKelurahan(provVal, kabVal, kecVal, cleanName);
+  }
+
+  // 2. Masukkan ke dropdown options jika belum ada (sebelum opsi __manual__)
+  let opt = Array.from(selectEl.options).find(o => o.value.toLowerCase() === cleanName.toLowerCase());
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = cleanName;
+    opt.textContent = cleanName;
+    const manualOpt = Array.from(selectEl.options).find(o => o.value === '__manual__');
+    if (manualOpt) {
+      selectEl.insertBefore(opt, manualOpt);
+    } else {
+      selectEl.appendChild(opt);
+    }
+  }
+
+  // 3. Pilih opsi tersebut & catat _lastValidValue
+  selectEl.value = cleanName;
+  selectEl._lastValidValue = cleanName;
+  syncWilayahComboboxUI(selectEl.id);
+
+  // 4. Jalankan downstream cascading
+  if (group) {
+    if (tier === 'provinsi') {
+      await group.loadKab(cleanName);
+    } else if (tier === 'kab_kota') {
+      await group.loadKec(provVal || cleanName, cleanName);
+    } else if (tier === 'kecamatan') {
+      await group.loadKel(provVal, kabVal, cleanName);
+    } else if (tier === 'kelurahan') {
+      syncWilayahComboboxUI(selectEl.id);
+    }
+  }
+
+  if (typeof Swal !== 'undefined') {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `"${cleanName}" berhasil disimpan & dipilih!`,
+      showConfirmButton: false,
+      timer: 2200
+    });
+  }
+}
+
+// --------------------------------------------------------------------------
+// 🌐 UNIVERSAL CASCADING WILAYAH LOGIC (SE-INDONESIA EMSIFA API & CACHE)
+// --------------------------------------------------------------------------
 async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectId, kelSelectId, initialProv, initialKab, initialKec, initialKel) {
   const provSelect = document.getElementById(provSelectId);
   const kabSelect = document.getElementById(kabSelectId);
@@ -219,26 +589,47 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
   const defKec = initialKec || 'Banjaran';
   const defKel = initialKel || 'Tarajusari';
 
-  function selectOptionByText(selectEl, textVal) {
+  function selectOptionByText(selectEl, textVal, tierName) {
     if (!selectEl || !textVal) return null;
+    if (textVal === '__manual__') return null;
     const clean = String(textVal).trim().toLowerCase();
     const cleanStripped = clean.replace(/^(kabupaten|kab\.|kota)\s*/i, '').trim();
     for (let i = 0; i < selectEl.options.length; i++) {
       const opt = selectEl.options[i];
+      if (opt.value === '__manual__') continue;
       const optVal = String(opt.value).trim().toLowerCase();
       const optText = String(opt.textContent).trim().toLowerCase();
       const optStripped = optVal.replace(/^(kabupaten|kab\.|kota)\s*/i, '').trim();
       if (optVal === clean || optText === clean || (cleanStripped && optStripped === cleanStripped)) {
         selectEl.selectedIndex = i;
+        selectEl._lastValidValue = opt.value;
         syncWilayahComboboxUI(selectEl.id);
         return opt;
       }
     }
+    const formatted = toTitleCase(String(textVal).trim());
     const opt = document.createElement('option');
-    opt.value = textVal;
-    opt.textContent = textVal;
-    selectEl.appendChild(opt);
-    selectEl.value = textVal;
+    opt.value = formatted;
+    opt.textContent = formatted;
+
+    if (tierName === 'provinsi') {
+      addCustomProvinsi(formatted);
+    } else if (tierName === 'kab_kota') {
+      addCustomKabKota(provSelect?.value, formatted);
+    } else if (tierName === 'kecamatan') {
+      addCustomKecamatan(provSelect?.value, kabSelect?.value, formatted);
+    } else if (tierName === 'kelurahan') {
+      addCustomKelurahan(provSelect?.value, kabSelect?.value, kecSelect?.value, formatted);
+    }
+
+    const manualOpt = Array.from(selectEl.options).find(o => o.value === '__manual__');
+    if (manualOpt) {
+      selectEl.insertBefore(opt, manualOpt);
+    } else {
+      selectEl.appendChild(opt);
+    }
+    selectEl.value = formatted;
+    selectEl._lastValidValue = formatted;
     syncWilayahComboboxUI(selectEl.id);
     return opt;
   }
@@ -259,6 +650,20 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       provSelect.innerHTML += `<option value="${prov}">${prov}</option>`;
     });
   }
+
+  // Inject custom Provinsi dari localStorage
+  const customProvs = getCustomProvinsiList();
+  if (customProvs && customProvs.length > 0) {
+    customProvs.forEach(cp => {
+      const exists = Array.from(provSelect.options).some(o => o.value.toLowerCase() === cp.toLowerCase());
+      if (!exists) {
+        provSelect.innerHTML += `<option value="${escapeHtml(cp)}">${escapeHtml(cp)}</option>`;
+      }
+    });
+  }
+
+  // Opsi isi manual di akhir dropdown
+  provSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
   syncWilayahComboboxUI(provSelectId);
 
   // 2. Load Kab/Kota
@@ -269,7 +674,12 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
     syncWilayahComboboxUI(kabSelectId);
     syncWilayahComboboxUI(kecSelectId);
     syncWilayahComboboxUI(kelSelectId);
-    if (!provName) return;
+    if (!provName || provName === '__manual__') {
+      kabSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+      kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+      kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+      return;
+    }
 
     const provOpt = Array.from(provSelect.options).find(o => o.value.toLowerCase() === provName.toLowerCase());
     const provId = provOpt?.getAttribute('data-id');
@@ -291,8 +701,22 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       });
     }
 
+    // Inject custom Kab/Kota dari localStorage untuk provinsi terpilih
+    const customKabs = getCustomKabKotaList(provName);
+    if (customKabs && customKabs.length > 0) {
+      customKabs.forEach(ck => {
+        const exists = Array.from(kabSelect.options).some(o => o.value.toLowerCase() === ck.toLowerCase());
+        if (!exists) {
+          kabSelect.innerHTML += `<option value="${escapeHtml(ck)}">${escapeHtml(ck)}</option>`;
+        }
+      });
+    }
+
+    // Opsi isi manual di akhir dropdown
+    kabSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+
     if (selectKabVal) {
-      selectOptionByText(kabSelect, selectKabVal);
+      selectOptionByText(kabSelect, selectKabVal, 'kab_kota');
       await loadKec(provName, kabSelect.value, defKec);
     } else {
       syncWilayahComboboxUI(kabSelectId);
@@ -305,7 +729,11 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
     kelSelect.innerHTML = '<option value="">-- Pilih Kelurahan --</option>';
     syncWilayahComboboxUI(kecSelectId);
     syncWilayahComboboxUI(kelSelectId);
-    if (!kabName) return;
+    if (!kabName || kabName === '__manual__') {
+      kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+      kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+      return;
+    }
 
     const kabOpt = Array.from(kabSelect.options).find(o => o.value.toLowerCase() === kabName.toLowerCase() || o.value.toLowerCase().replace(/^(kabupaten|kab\.|kota)\s*/i, '') === kabName.toLowerCase().replace(/^(kabupaten|kab\.|kota)\s*/i, ''));
     const regId = kabOpt?.getAttribute('data-id');
@@ -327,8 +755,22 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       });
     }
 
+    // Inject custom Kecamatan dari localStorage untuk kab/kota terpilih
+    const customKecs = getCustomKecamatanList(provName, kabName);
+    if (customKecs && customKecs.length > 0) {
+      customKecs.forEach(ck => {
+        const exists = Array.from(kecSelect.options).some(o => o.value.toLowerCase() === ck.toLowerCase());
+        if (!exists) {
+          kecSelect.innerHTML += `<option value="${escapeHtml(ck)}">${escapeHtml(ck)}</option>`;
+        }
+      });
+    }
+
+    // Opsi isi manual di akhir dropdown
+    kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+
     if (selectKecVal) {
-      selectOptionByText(kecSelect, selectKecVal);
+      selectOptionByText(kecSelect, selectKecVal, 'kecamatan');
       await loadKel(provName, kabName, kecSelect.value, defKel);
     } else {
       syncWilayahComboboxUI(kecSelectId);
@@ -339,7 +781,10 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
   async function loadKel(provName, kabName, kecName, selectKelVal) {
     kelSelect.innerHTML = '<option value="">-- Pilih Kelurahan --</option>';
     syncWilayahComboboxUI(kelSelectId);
-    if (!kecName) return;
+    if (!kecName || kecName === '__manual__') {
+      kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+      return;
+    }
 
     const kecOpt = Array.from(kecSelect.options).find(o => o.value.toLowerCase() === kecName.toLowerCase());
     const distId = kecOpt?.getAttribute('data-id');
@@ -363,30 +808,79 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       });
     }
 
+    // Inject custom Kelurahan dari localStorage untuk kecamatan terpilih
+    const customKels = getCustomKelurahanList(provName, kabName, kecName);
+    if (customKels && customKels.length > 0) {
+      customKels.forEach(ck => {
+        const exists = Array.from(kelSelect.options).some(o => o.value.toLowerCase() === ck.toLowerCase());
+        if (!exists) {
+          kelSelect.innerHTML += `<option value="${escapeHtml(ck)}">${escapeHtml(ck)}</option>`;
+        }
+      });
+    }
+
+    // Opsi isi manual di akhir dropdown
+    kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
+
     if (selectKelVal) {
-      selectOptionByText(kelSelect, selectKelVal);
+      selectOptionByText(kelSelect, selectKelVal, 'kelurahan');
     } else {
       syncWilayahComboboxUI(kelSelectId);
     }
   }
 
-  provSelect.onchange = () => {
-    syncWilayahComboboxUI(provSelectId);
-    loadKab(provSelect.value);
-  };
-  kabSelect.onchange = () => {
-    syncWilayahComboboxUI(kabSelectId);
-    loadKec(provSelect.value, kabSelect.value);
-  };
-  kecSelect.onchange = () => {
-    syncWilayahComboboxUI(kecSelectId);
-    loadKel(provSelect.value, kabSelect.value, kecSelect.value);
-  };
-  kelSelect.onchange = () => {
-    syncWilayahComboboxUI(kelSelectId);
+  // Tautkan referensi cascade group dan tier ke element
+  const cascadeGroup = { provSelect, kabSelect, kecSelect, kelSelect, loadKab, loadKec, loadKel };
+  provSelect._cascadeGroup = cascadeGroup;
+  kabSelect._cascadeGroup = cascadeGroup;
+  kecSelect._cascadeGroup = cascadeGroup;
+  kelSelect._cascadeGroup = cascadeGroup;
+
+  provSelect._tierName = 'provinsi';
+  kabSelect._tierName = 'kab_kota';
+  kecSelect._tierName = 'kecamatan';
+  kelSelect._tierName = 'kelurahan';
+
+  provSelect.onchange = async () => {
+    if (provSelect.value === '__manual__') {
+      await triggerManualWilayahInput(provSelectId, 'provinsi');
+    } else {
+      provSelect._lastValidValue = provSelect.value;
+      syncWilayahComboboxUI(provSelectId);
+      await loadKab(provSelect.value);
+    }
   };
 
-  selectOptionByText(provSelect, defProv);
+  kabSelect.onchange = async () => {
+    if (kabSelect.value === '__manual__') {
+      await triggerManualWilayahInput(kabSelectId, 'kab_kota');
+    } else {
+      kabSelect._lastValidValue = kabSelect.value;
+      syncWilayahComboboxUI(kabSelectId);
+      await loadKec(provSelect.value, kabSelect.value);
+    }
+  };
+
+  kecSelect.onchange = async () => {
+    if (kecSelect.value === '__manual__') {
+      await triggerManualWilayahInput(kecSelectId, 'kecamatan');
+    } else {
+      kecSelect._lastValidValue = kecSelect.value;
+      syncWilayahComboboxUI(kecSelectId);
+      await loadKel(provSelect.value, kabSelect.value, kecSelect.value);
+    }
+  };
+
+  kelSelect.onchange = async () => {
+    if (kelSelect.value === '__manual__') {
+      await triggerManualWilayahInput(kelSelectId, 'kelurahan');
+    } else {
+      kelSelect._lastValidValue = kelSelect.value;
+      syncWilayahComboboxUI(kelSelectId);
+    }
+  };
+
+  selectOptionByText(provSelect, defProv, 'provinsi');
   await loadKab(provSelect.value, defKab);
 }
 
@@ -1813,4 +2307,19 @@ function calculateAgeFromDOB(isFromCekNik = false) {
     // Skenario 2: Isi Manual -> jangan ganti radio diam-diam, lakukan validasi & kunci tombol jika mismatch
     checkDobKategoriCompatibility(true);
   }
+}
+
+// Window Bindings untuk Pilihan Manual & Custom Storage Wilayah
+if (typeof window !== 'undefined') {
+  window.triggerManualWilayahInput = triggerManualWilayahInput;
+  window.getCustomWilayahStorage = getCustomWilayahStorage;
+  window.saveCustomWilayahStorage = saveCustomWilayahStorage;
+  window.getCustomProvinsiList = getCustomProvinsiList;
+  window.addCustomProvinsi = addCustomProvinsi;
+  window.getCustomKabKotaList = getCustomKabKotaList;
+  window.addCustomKabKota = addCustomKabKota;
+  window.getCustomKecamatanList = getCustomKecamatanList;
+  window.addCustomKecamatan = addCustomKecamatan;
+  window.getCustomKelurahanList = getCustomKelurahanList;
+  window.addCustomKelurahan = addCustomKelurahan;
 }

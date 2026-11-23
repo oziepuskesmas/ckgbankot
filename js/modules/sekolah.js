@@ -960,6 +960,14 @@ function setIdentitasFieldsLockState(isLocked, isFromBankData = false) {
       el.title = '';
     }
   });
+
+  // Tombol Isi Manual Wilayah ikut terkunci jika form identitas dikunci
+  const manualBtns = document.querySelectorAll('#periksaIdentitasPanel .btn-manual-wilayah');
+  manualBtns.forEach(btn => {
+    btn.disabled = isLocked;
+    btn.style.opacity = isLocked ? '0.4' : '1';
+    btn.style.pointerEvents = isLocked ? 'none' : 'auto';
+  });
 }
 
 function updateBankDataBadgeStatus(isFound, customText) {
@@ -3711,10 +3719,10 @@ async function saveSekolahCategory(categoryKey, triggerBtn) {
       if (!sekolahVal) missingIdentity.push('Asal Sekolah');
       if (!kelasVal) missingIdentity.push('Kelas Siswa');
       if (!tglLahirVal) missingIdentity.push('Tanggal Lahir');
-      if (!provVal) missingIdentity.push('Provinsi');
-      if (!kabVal) missingIdentity.push('Kabupaten / Kota');
-      if (!kecVal) missingIdentity.push('Kecamatan');
-      if (!kelVal) missingIdentity.push('Desa / Kelurahan');
+      if (!provVal || provVal === '__manual__') missingIdentity.push('Provinsi');
+      if (!kabVal || kabVal === '__manual__') missingIdentity.push('Kabupaten / Kota');
+      if (!kecVal || kecVal === '__manual__') missingIdentity.push('Kecamatan');
+      if (!kelVal || kelVal === '__manual__') missingIdentity.push('Desa / Kelurahan');
       if (!alamatVal) missingIdentity.push('Alamat Tempat Tinggal');
 
       if (missingIdentity.length > 0) {
@@ -4053,10 +4061,10 @@ async function savePemeriksaanSiswa(event) {
     if (!curJk) missingFields.push('Jenis Kelamin (L/P)');
     if (!curSekolah) missingFields.push('Sekolah');
     if (!curKelas) missingFields.push('Kelas');
-    if (!curProv) missingFields.push('Provinsi');
-    if (!curKab) missingFields.push('Kabupaten / Kota');
-    if (!curKec) missingFields.push('Kecamatan');
-    if (!curKel) missingFields.push('Desa / Kelurahan');
+    if (!curProv || curProv === '__manual__') missingFields.push('Provinsi');
+    if (!curKab || curKab === '__manual__') missingFields.push('Kabupaten / Kota');
+    if (!curKec || curKec === '__manual__') missingFields.push('Kecamatan');
+    if (!curKel || curKel === '__manual__') missingFields.push('Desa / Kelurahan');
     if (!curAlamat) missingFields.push('Alamat Tempat Tinggal');
 
     if (missingFields.length > 0) {
@@ -4283,6 +4291,14 @@ function setTambahSiswaFieldsLockState(isLocked, isFromBankData = false) {
       el.style.cursor = '';
       el.removeAttribute('title');
     }
+  });
+
+  // Tombol Isi Manual Wilayah ikut terkunci jika pendaftaran siswa dikunci
+  const manualBtns = document.querySelectorAll('#modalTambahSiswa .btn-manual-wilayah');
+  manualBtns.forEach(btn => {
+    btn.disabled = isLocked;
+    btn.style.opacity = isLocked ? '0.4' : '1';
+    btn.style.pointerEvents = isLocked ? 'none' : 'auto';
   });
 
   // Sekolah: jika login sekolah, tetap terkunci pada nama sekolah akunnya
@@ -4647,7 +4663,8 @@ async function saveTambahSiswa(event) {
   const alamat = (document.getElementById('tambahSiswaAlamat')?.value || '').trim().toUpperCase();
 
   // 2. Validasi kelengkapan semua identitas
-  if (!nama || !sekolah || !kelas || !tglLahir || !prov || !kab || !kec || !kel || !alamat) {
+  if (!nama || !sekolah || !kelas || !tglLahir || !prov || !kab || !kec || !kel || !alamat ||
+      prov === '__manual__' || kab === '__manual__' || kec === '__manual__' || kel === '__manual__') {
     Swal.fire({
       icon: 'warning',
       title: 'Identitas Belum Lengkap',

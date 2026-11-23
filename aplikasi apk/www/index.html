@@ -5368,13 +5368,23 @@
           <div class="sekolah-grid-2"
             style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group">
-              <label class="form-label" for="periksaProvinsi">Provinsi <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="periksaProvinsi" style="margin-bottom: 0;">Provinsi <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('periksaProvinsi', 'provinsi')" title="Isi manual nama Provinsi jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="periksaProvinsi" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Provinsi --</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="periksaKabKota">Kabupaten / Kota <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="periksaKabKota" style="margin-bottom: 0;">Kabupaten / Kota <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('periksaKabKota', 'kab_kota')" title="Isi manual nama Kab/Kota jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="periksaKabKota" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Kab/Kota --</option>
               </select>
@@ -5384,13 +5394,23 @@
           <div class="sekolah-grid-2"
             style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group">
-              <label class="form-label" for="periksaKecamatan">Kecamatan <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="periksaKecamatan" style="margin-bottom: 0;">Kecamatan <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('periksaKecamatan', 'kecamatan')" title="Isi manual nama Kecamatan jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="periksaKecamatan" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Kecamatan --</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="periksaKelurahan">Desa / Kelurahan <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="periksaKelurahan" style="margin-bottom: 0;">Desa / Kelurahan <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('periksaKelurahan', 'kelurahan')" title="Isi manual nama Desa/Kelurahan jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="periksaKelurahan" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Kelurahan --</option>
               </select>
@@ -6053,13 +6073,23 @@
           <div class="sekolah-grid-2"
             style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group">
-              <label class="form-label" for="tambahSiswaProvinsi">Provinsi <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="tambahSiswaProvinsi" style="margin-bottom: 0;">Provinsi <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('tambahSiswaProvinsi', 'provinsi')" title="Isi manual nama Provinsi jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="tambahSiswaProvinsi" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Provinsi --</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="tambahSiswaKabKota">Kabupaten / Kota <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="tambahSiswaKabKota" style="margin-bottom: 0;">Kabupaten / Kota <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('tambahSiswaKabKota', 'kab_kota')" title="Isi manual nama Kab/Kota jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="tambahSiswaKabKota" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Kab/Kota --</option>
               </select>
@@ -6069,13 +6099,23 @@
           <div class="sekolah-grid-2"
             style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div class="form-group">
-              <label class="form-label" for="tambahSiswaKecamatan">Kecamatan <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="tambahSiswaKecamatan" style="margin-bottom: 0;">Kecamatan <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('tambahSiswaKecamatan', 'kecamatan')" title="Isi manual nama Kecamatan jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="tambahSiswaKecamatan" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Kecamatan --</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="tambahSiswaKelurahan">Desa / Kelurahan <span class="required" style="color: #059669;">*</span></label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label class="form-label" for="tambahSiswaKelurahan" style="margin-bottom: 0;">Desa / Kelurahan <span class="required" style="color: #059669;">*</span></label>
+                <button type="button" class="btn-manual-wilayah" onclick="triggerManualWilayahInput('tambahSiswaKelurahan', 'kelurahan')" title="Isi manual nama Desa/Kelurahan jika tidak ada di daftar" style="background: none; border: none; color: #059669; font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 2px 4px; display: inline-flex; align-items: center; gap: 3px; text-decoration: underline;">
+                  <i class="bi bi-pencil-square"></i> + Isi Manual
+                </button>
+              </div>
               <select id="tambahSiswaKelurahan" class="form-control" required style="font-weight: 700;">
                 <option value="">-- Pilih Kelurahan --</option>
               </select>
