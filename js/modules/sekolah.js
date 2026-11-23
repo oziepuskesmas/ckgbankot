@@ -285,9 +285,10 @@ function loadMasterSekolahFromStorage() {
         return parsed.map(s => ({
           nama: (s.nama || '').trim().toUpperCase(),
           level: (s.level || 'SD').trim().toUpperCase(),
+          has_password: Boolean(s.has_password || (s.password && s.password.trim() !== '')),
           password: s.password || '',
           allowed_menus: s.allowed_menus || '',
-          is_active: s.is_active !== undefined ? s.is_active : (s.password ? 1 : 0)
+          is_active: s.is_active !== undefined ? s.is_active : (s.has_password || s.password ? 1 : 0)
         }));
       }
     }

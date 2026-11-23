@@ -1019,6 +1019,11 @@ function openSekolahPortal() {
     sekolahOverlay.style.display = 'flex';
   }
   populateLoginSekolahDropdown();
+  if (typeof fetchMasterSekolahFromCloud === 'function') {
+    fetchMasterSekolahFromCloud().then(() => {
+      populateLoginSekolahDropdown();
+    }).catch(() => { });
+  }
 }
 
 function openPosyanduPortal() {
@@ -1050,11 +1055,13 @@ function populateLoginSekolahDropdown() {
   const container = document.getElementById('comboboxLoginSekolahOptions');
   const hiddenInput = document.getElementById('loginSekolahSelect');
 
-  // HANYA tampilkan sekolah yang aktif (is_active !== 0) DAN sudah diset password oleh admin
-  const activeSchools = MASTER_SARANA_SEKOLAH.filter(s => {
-    const hasPass = s.password && String(s.password).trim() !== '';
-    const isActive = s.is_active !== 0;
-    return hasPass && isActive;
+  const schoolList = (typeof MASTER_SARANA_SEKOLAH !== 'undefined' && Array.isArray(MASTER_SARANA_SEKOLAH)) ? MASTER_SARANA_SEKOLAH : [];
+  // Tampilkan seluruh sekolah yang akunnya berstatus aktif
+  const activeSchools = schoolList.filter(s => {
+    const hasPass = Boolean(s.has_password || (s.password && String(s.password).trim() !== ''));
+    const isExplicitlyDisabled = s.is_active === 0 || s.is_active === '0' || s.is_active === false;
+    const isExplicitlyActive = s.is_active === 1 || s.is_active === '1' || s.is_active === true;
+    return isExplicitlyActive || (!isExplicitlyDisabled && hasPass);
   });
 
   const sdList = activeSchools.filter(s => s.level === 'SD');
