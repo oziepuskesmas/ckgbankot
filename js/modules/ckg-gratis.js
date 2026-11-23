@@ -861,13 +861,13 @@ function validateCurrentStep(step) {
   if (step === 2) {
     const belumPunyaNik = document.getElementById('belum_punya_nik')?.checked || false;
     const nik = (document.getElementById('nik')?.value || '').replace(/\D/g, '').trim();
-    const nama = document.getElementById('nama')?.value.trim();
+    const nama = (document.getElementById('nama')?.value.trim() || '').toUpperCase();
     const dob = document.getElementById('tanggal_lahir')?.value;
     const prov = document.getElementById('provinsi')?.value;
     const kab = document.getElementById('kab_kota')?.value;
     const kec = document.getElementById('kecamatan')?.value;
     const kel = document.getElementById('kelurahan')?.value;
-    const alamat = document.getElementById('alamat')?.value.trim();
+    const alamat = (document.getElementById('alamat')?.value.trim() || '').toUpperCase();
 
     if (!belumPunyaNik) {
       if (!nik || nik.length !== 16) {
@@ -1264,9 +1264,9 @@ async function handleFormSubmit(e) {
 
   const belumPunyaNik = document.getElementById('belum_punya_nik')?.checked || false;
   let nik = (document.getElementById('nik')?.value || '').replace(/\D/g, '').trim();
-  const nama = (document.getElementById('nama')?.value || '').trim();
+  const nama = (document.getElementById('nama')?.value || '').trim().toUpperCase();
   const tanggalLahir = (document.getElementById('tanggal_lahir')?.value || '').trim();
-  const alamat = (document.getElementById('alamat')?.value || '').trim();
+  const alamat = (document.getElementById('alamat')?.value || '').trim().toUpperCase();
   const bb = parseFloat(document.getElementById('bb')?.value) || 0;
   const tb = parseFloat(document.getElementById('tb')?.value) || 0;
 
@@ -1312,7 +1312,7 @@ async function handleFormSubmit(e) {
   const isWajibWali = (katSasaran === 'bayi_balita' || katSasaran === 'prasekolah');
 
   const nikWali = (document.getElementById('nik_wali')?.value || '').replace(/\D/g, '').trim();
-  const namaWali = (document.getElementById('nama_wali')?.value || '').trim();
+  const namaWali = (document.getElementById('nama_wali')?.value || '').trim().toUpperCase();
   const dobWali = (document.getElementById('tanggal_lahir_wali')?.value || '').trim();
   const jkWali = (document.getElementById('jenis_kelamin_wali')?.value || '').trim();
   let waWali = (document.getElementById('no_whatsapp_wali')?.value || '').trim();
@@ -1409,7 +1409,7 @@ async function handleFormSubmit(e) {
     no_whatsapp_wali: waWali,
     wali_nomor_sama: isNomorSama ? 1 : 0,
     jenis_kegiatan: document.querySelector('input[name="jenis_kegiatan"]:checked')?.value || 'Luar Gedung',
-    pos_lokasi: document.getElementById('pos_lokasi')?.value || '',
+    pos_lokasi: (document.getElementById('pos_lokasi')?.value || '').trim().toUpperCase(),
     nik: nik,
     nama: nama,
     tanggal_lahir: tanggalLahir,
@@ -1422,7 +1422,7 @@ async function handleFormSubmit(e) {
     kecamatan: document.getElementById('kecamatan')?.value || 'Banjaran',
     kelurahan: document.getElementById('kelurahan')?.value || 'Banjaran Kota',
     alamat: alamat,
-    pekerjaan: document.getElementById('pekerjaan')?.value || '',
+    pekerjaan: (document.getElementById('pekerjaan')?.value || '').trim().toUpperCase(),
     merokok: isCkgGratis ? (existingRecord?.merokok || 'Tidak') : (document.querySelector('input[name="merokok"]:checked')?.value || 'Tidak'),
     bb: isCkgGratis ? (existingRecord?.bb || 0) : bb,
     tb: isCkgGratis ? (existingRecord?.tb || 0) : tb,
@@ -2501,7 +2501,7 @@ function buildTableRowsHtml(data) {
         <td>${kegiatanBadge}</td>
         <td>
           <div style="display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap;">
-            <strong>${r.nama}</strong>
+            <strong>${escapeHtml(String(r.nama || '-').toUpperCase())}</strong>
             ${isBankDataOrAsikRec ? `<i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 13.5px; line-height: 1; flex-shrink: 0;" title="Terdaftar di Bank Data ASIK"></i>` : ''}
             ${isPernahRec ? `<span class="badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-size: 9.5px; font-weight: 800; padding: 1px 5px; border-radius: 4px;"><i class="bi bi-clock-history"></i> Pernah Input</span>` : ''}
           </div><br>
@@ -2713,8 +2713,10 @@ function buildCkgGratisRowsHtml(list, startIndex = 0) {
     const kab = String(r.kab_kota || 'KAB. BANDUNG').trim().toUpperCase();
     const kec = String(r.kecamatan || 'BANJARAN').trim().toUpperCase();
     const kel = String(r.kelurahan || 'BANJARAN KOTA').trim().toUpperCase();
-    const alamat = String(r.alamat || 'BANJARAN').trim();
-    const pekerjaan = String(r.pekerjaan || 'Lainnya').trim();
+    const alamat = String(r.alamat || 'BANJARAN').trim().toUpperCase();
+    const pekerjaan = String(r.pekerjaan || 'Lainnya').trim().toUpperCase();
+    const namaPasienDisplay = String(r.nama || '-').trim().toUpperCase();
+    const namaWaliDisplay = (r.nama_wali || r.nik_wali) ? String(r.nama_wali || r.nik_wali).trim().toUpperCase() : '';
     const isMerokok = String(r.merokok || '').toLowerCase().includes('ya');
 
     const isHipertensi = r.td_sistolik > 140 || r.td_diastolik > 90;
@@ -2766,7 +2768,7 @@ function buildCkgGratisRowsHtml(list, startIndex = 0) {
         <!-- KOLOM 2: NAMA PASIEN & IDENTITAS -->
         <td style="vertical-align: middle;">
           <div style="font-weight: 800; font-size: 13.5px; color: #1e293b; margin-bottom: 3px; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            <span>${r.nama || '-'}</span>
+            <span>${escapeHtml(namaPasienDisplay)}</span>
             ${showCentangHijau ? `<i class="bi bi-check-circle-fill" style="color: #10b981; font-size: 14px; line-height: 1; flex-shrink: 0;" title="Terdaftar di Bank Data ASIK / Selesai Entri Bot"></i>` : ''}
             ${isBotPernahInput ? `<span class="badge" style="background: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-size: 10px; font-weight: 800; padding: 1.5px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px;"><i class="bi bi-clock-history"></i> Pernah Input</span>` : ''}
           </div>
@@ -2782,7 +2784,7 @@ function buildCkgGratisRowsHtml(list, startIndex = 0) {
           </div>
           <div style="font-size: 11.5px; color: #64748b;">
             <i class="bi bi-calendar3"></i> Lahir: <strong>${formatDateToYYYYMMDD(r.tanggal_lahir)}</strong>
-            ${(r.nama_wali || r.nik_wali) ? `<span style="color: #b45309; margin-left: 5px;">• Wali: <strong>${r.nama_wali || r.nik_wali}</strong></span>` : ''}
+            ${namaWaliDisplay ? `<span style="color: #b45309; margin-left: 5px;">• Wali: <strong>${escapeHtml(namaWaliDisplay)}</strong></span>` : ''}
           </div>
         </td>
 
@@ -2926,13 +2928,13 @@ function editCkgGratisRecord(id) {
     }
   }
 
-  setVal('nama', r.nama);
+  setVal('nama', String(r.nama || '').toUpperCase());
   setVal('tanggal_lahir', formatDateToYYYYMMDD(r.tanggal_lahir));
   setVal('usia', r.usia);
   setVal('jenis_kelamin', r.jenis_kelamin);
   setVal('no_whatsapp', r.no_whatsapp);
   setVal('status_pernikahan', r.status_pernikahan || 'MENIKAH');
-  setVal('pekerjaan', r.pekerjaan);
+  setVal('pekerjaan', String(r.pekerjaan || '').toUpperCase());
 
   setVal('bb', r.bb);
   setVal('tb', r.tb);
@@ -2956,7 +2958,7 @@ function editCkgGratisRecord(id) {
   }
 
   setVal('nik_wali', r.nik_wali || '');
-  setVal('nama_wali', r.nama_wali || '');
+  setVal('nama_wali', String(r.nama_wali || '').toUpperCase());
   setVal('tanggal_lahir_wali', formatDateToYYYYMMDD(r.tanggal_lahir_wali) || '');
   setVal('jenis_kelamin_wali', r.jenis_kelamin_wali || '');
   setVal('no_whatsapp_wali', r.no_whatsapp_wali || '');
@@ -2993,7 +2995,7 @@ function editCkgGratisRecord(id) {
       setVal('kab_kota', r.kab_kota || 'Kab. Bandung');
       setVal('kecamatan', r.kecamatan || 'Banjaran');
       setVal('kelurahan', r.kelurahan || 'Banjaran Kota');
-      setVal('alamat', r.alamat || '');
+      setVal('alamat', String(r.alamat || '').toUpperCase());
       syncWilayahComboboxLabels();
     }, 50);
   }, 50);
@@ -4402,10 +4404,10 @@ function viewDetailModal(id, source = 'records') {
       <div><strong>ID Record:</strong> ${r.id}</div>
       <div><strong>Kegiatan:</strong> ${r.jenis_kegiatan}</div>
       <div><strong>NIK:</strong> ${r.nik}</div>
-      <div><strong>Nama Lengkap:</strong> ${r.nama}</div>
+      <div><strong>Nama Lengkap:</strong> ${escapeHtml(String(r.nama || '-').toUpperCase())}</div>
       <div><strong>Tanggal Lahir / Usia:</strong> ${formatDateToYYYYMMDD(r.tanggal_lahir)} (${r.usia} Tahun - ${getKategoriUmur(r.usia, r.tanggal_lahir)})</div>
       <div><strong>Jenis Kelamin:</strong> ${r.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</div>
-      <div><strong>Alamat:</strong> ${r.alamat}, Kel. ${r.kelurahan}, Kec. ${r.kecamatan}</div>
+      <div><strong>Alamat:</strong> ${escapeHtml(String(r.alamat || '-').toUpperCase())}, Kel. ${escapeHtml(String(r.kelurahan || '-').toUpperCase())}, Kec. ${escapeHtml(String(r.kecamatan || '-').toUpperCase())}</div>
       <div><strong>BB / TB / LP:</strong> ${r.bb} kg / ${r.tb} cm / ${r.lp || '-'} cm</div>
       <div><strong>IMT:</strong> ${r.imt}</div>
       <div><strong>Tekanan Darah:</strong> ${r.td_sistolik}/${r.td_diastolik} mmHg</div>
@@ -5021,7 +5023,7 @@ function processExportBotEncoXLSX(kategoriVal, bulanVal, tahunVal, petugasVal, s
 
       const rows = targetRecords.map(r => {
         const cleanNik = sanitizeNikStr(r.nik || r.nik_pasien || '');
-        const cleanNama = String(r.nama || r.nama_pasien || '').trim();
+        const cleanNama = String(r.nama || r.nama_pasien || '').trim().toUpperCase();
         const tglLahir = formatDateToYYYYMMDD(r.tanggal_lahir);
         const jk = formatGenderBot(r.jenis_kelamin);
         const wa = formatWaBot(r.no_whatsapp);
@@ -5030,8 +5032,8 @@ function processExportBotEncoXLSX(kategoriVal, bulanVal, tahunVal, petugasVal, s
         const kab = String(r.kab_kota || 'KAB. BANDUNG').trim().toUpperCase();
         const kec = String(r.kecamatan || 'BANJARAN').trim().toUpperCase();
         const kel = String(r.kelurahan || 'BANJARAN KOTA').trim().toUpperCase();
-        const alamat = String(r.alamat || 'BANJARAN').trim();
-        const pekerjaan = String(r.pekerjaan || 'Lainnya').trim();
+        const alamat = String(r.alamat || 'BANJARAN').trim().toUpperCase();
+        const pekerjaan = String(r.pekerjaan || 'Lainnya').trim().toUpperCase();
         const merokok = formatMerokokBot(r.merokok);
 
         const bb = formatNum(r.bb);
@@ -5395,7 +5397,8 @@ function handleImportFileSelect(event) {
         };
 
         const rawNik = getVal('NIK (WAJIB KUNCI 16 DIGIT)', 'NIK', 'No KTP', 'Nomor NIK');
-        const nama = getVal('NAMA LENGKAP PASIEN', 'Nama Pasien', 'Nama Lengkap', 'Nama Pasien & NIK', 'Nama');
+        const rawNama = getVal('NAMA LENGKAP PASIEN', 'Nama Pasien', 'Nama Lengkap', 'Nama Pasien & NIK', 'Nama');
+        const nama = rawNama ? String(rawNama).trim().toUpperCase() : '';
         if (!nama && !rawNik) return;
 
         const cleanNik = extractCleanNik16(rawNik);
@@ -5421,12 +5424,12 @@ function handleImportFileSelect(event) {
         const jk = jkRaw.toUpperCase().startsWith('P') ? 'P' : 'L';
         const wa = getVal('NO WHATSAPP', 'No WhatsApp', 'WA', 'HP') || '';
         const statusNikah = getVal('STATUS PERNIKAHAN', 'Status Pernikahan', 'Status Nikah') || 'Kawin';
-        const pekerjaan = getVal('PEKERJAAN', 'Pekerjaan') || '';
+        const pekerjaan = (getVal('PEKERJAAN', 'Pekerjaan') || '').trim().toUpperCase();
         const provinsi = getVal('PROVINSI', 'Provinsi') || 'Jawa Barat';
         const kabKota = getVal('KABUPATEN / KOTA', 'Kab/Kota', 'Kota') || 'Kab. Bandung';
         const kecamatan = getVal('KECAMATAN', 'Kecamatan') || 'Banjaran';
         const kelurahan = getVal('DESA / KELURAHAN', 'Kelurahan', 'Desa') || 'Banjaran Kota';
-        const alamat = getVal('ALAMAT TEMPAT TINGGAL', 'Alamat Lengkap', 'Alamat') || 'Banjaran';
+        const alamat = (getVal('ALAMAT TEMPAT TINGGAL', 'Alamat Lengkap', 'Alamat') || 'BANJARAN').trim().toUpperCase();
         const jenisKegiatan = getVal('Jenis Kegiatan', 'Kegiatan') || 'Luar Gedung';
         const merokok = getVal('Merokok') || 'Tidak';
 

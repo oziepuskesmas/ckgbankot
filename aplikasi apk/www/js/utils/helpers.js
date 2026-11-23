@@ -212,12 +212,17 @@ function formatTtdIndoDate(dateStr) {
 // UI Notification / Toast
 function showToast(message, type = 'info') {
   if (typeof Swal !== 'undefined') {
+    const isDark = document.body && document.body.classList.contains('dark-mode');
     const Toast = Swal.mixin({
       toast: true,
-      position: 'top-end',
+      position: 'bottom-end',
       showConfirmButton: false,
-      timer: 3000,
+      showCloseButton: false,
+      backdrop: false,
+      timer: 2200,
       timerProgressBar: true,
+      background: isDark ? '#1e293b' : '#ffffff',
+      color: isDark ? '#f8fafc' : '#0f172a',
       didOpen: (toast) => {
         toast.addEventListener('mouseenter', Swal.stopTimer);
         toast.addEventListener('mouseleave', Swal.resumeTimer);
@@ -309,10 +314,27 @@ function toggleDarkMode() {
     }
   }
 
-  showToast(isDark ? '🌙 Mode Gelap Diaktifkan' : '☀️ Mode Terang Diaktifkan', 'info');
+  showToast(isDark ? 'Mode Gelap Diaktifkan' : 'Mode Terang Diaktifkan', 'success');
 }
 
 function updateThemeToggleUI(isDark) {
+  // 1. Landing Gate Web
+  const portalGateIcon = document.getElementById('portalGateThemeIcon');
+  const portalGateText = document.getElementById('portalGateThemeText');
+  if (portalGateIcon) {
+    portalGateIcon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    portalGateIcon.style.color = isDark ? '#f59e0b' : '#64748b';
+  }
+  if (portalGateText) portalGateText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
+
+  // 2. APK Native Portal
+  const apkPortalIcon = document.getElementById('apkPortalThemeIcon');
+  if (apkPortalIcon) {
+    apkPortalIcon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    apkPortalIcon.style.color = isDark ? '#f59e0b' : '#64748b';
+  }
+
+  // 3. Header Navbar (Internal App)
   const headerBtnIcon = document.getElementById('themeToggleHeaderIcon');
   const headerBtnText = document.getElementById('themeToggleHeaderText');
   if (headerBtnIcon) {
@@ -321,6 +343,7 @@ function updateThemeToggleUI(isDark) {
   }
   if (headerBtnText) headerBtnText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
 
+  // 4. User Dropdown Menu
   const userMenuIcon = document.getElementById('userMenuThemeIcon');
   const userMenuText = document.getElementById('userMenuThemeText');
   if (userMenuIcon) {
@@ -329,6 +352,7 @@ function updateThemeToggleUI(isDark) {
   }
   if (userMenuText) userMenuText.textContent = isDark ? 'Mode Terang' : 'Mode Gelap';
 
+  // 5. Login View (Puskesmas)
   const loginThemeIcon = document.getElementById('loginThemeIcon');
   const loginThemeText = document.getElementById('loginThemeText');
   if (loginThemeIcon) {
@@ -354,3 +378,86 @@ window.hideLoadingOverlay = hideLoadingOverlay;
 window.initDarkMode = initDarkMode;
 window.toggleDarkMode = toggleDarkMode;
 window.updateThemeToggleUI = updateThemeToggleUI;
+
+// ==========================================================================
+// REALTIME AUTO UPPERCASE HANDLER (CKG & SEKOLAH)
+// Menjamin setiap ketikan di Menu Cek Kesehatan Gratis dan Sekolah otomatis menjadi HURUF BESAR SEMUA
+// ==========================================================================
+(function initGlobalAutoUppercase() {
+  const EXCLUDED_TYPES = new Set([
+    'password', 'email', 'file', 'checkbox', 'radio',
+    'date', 'time', 'datetime-local', 'month', 'week',
+    'color', 'range', 'number', 'tel'
+  ]);
+
+  const TARGET_IDS = new Set([
+    'nama', 'alamat', 'pekerjaan', 'nama_wali', 'pos_lokasi',
+    'periksaNama', 'periksaAlamat', 'periksaCatatanRujukan',
+    'tambahSiswaNama', 'tambahSiswaAlamat',
+    'searchCkgGratis', 'searchSekolahRecords', 'searchDataRecords',
+    'inputSearchProvinsiDropdown', 'inputSearchKabKotaDropdown',
+    'inputSearchKecamatanDropdown', 'inputSearchKelurahanDropdown',
+    'swal-input1'
+  ]);
+
+  const TARGET_CONTAINERS_SELECTOR = [
+    '#view-ckg-gratis', '#view-sekolah', '#view-data-records',
+    '#inputModalOverlay', '#modalPemeriksaanSiswa', '#modalFormPosSiswa',
+    '#modalTambahSiswa', '#modalKelolaSekolah', '#modalImportSekolah',
+    '#modalDuplicateFinder', '#modalNaikKelas', '#modalMigrasiSekolah',
+    '#modalLaporanSekolah', '.searchable-combobox-wrapper',
+    '.combobox-dropdown-panel', '.swal2-popup', '.auto-uppercase'
+  ].join(', ');
+
+  function applyUppercase(el) {
+    if (!el || !el.tagName) return;
+    const tag = el.tagName.toUpperCase();
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+
+    const type = (el.type || 'text').toLowerCase();
+    if (EXCLUDED_TYPES.has(type)) return;
+
+    // Cek apakah elemen ada di dalam kontainer CKG/Sekolah atau cocok dengan ID target
+    const isInsideTarget = TARGET_IDS.has(el.id) || el.classList.contains('auto-uppercase') || (el.closest && el.closest(TARGET_CONTAINERS_SELECTOR));
+    if (!isInsideTarget) {
+      // Periksa juga apakah view aktif saat ini adalah ckg-gratis atau sekolah
+      const activeView = document.querySelector('.view-panel.active');
+      const activeViewId = activeView ? activeView.id : '';
+      if (activeViewId !== 'view-ckg-gratis' && activeViewId !== 'view-sekolah' && activeViewId !== 'view-data-records') {
+        return;
+      }
+    }
+
+    const origVal = el.value;
+    if (typeof origVal !== 'string' || !origVal) return;
+
+    const upperVal = origVal.toUpperCase();
+    if (origVal !== upperVal) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      el.value = upperVal;
+      if (typeof start === 'number' && typeof end === 'number') {
+        try {
+          el.setSelectionRange(start, end);
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Tangkap event input secara capturing agar dieksekusi sebelum handler lain
+  document.addEventListener('input', function(e) {
+    applyUppercase(e.target);
+  }, true);
+
+  // Tangkap juga change dan keyup untuk mengantisipasi autofill dan navigasi keyboard
+  document.addEventListener('change', function(e) {
+    applyUppercase(e.target);
+  }, true);
+
+  document.addEventListener('keyup', function(e) {
+    applyUppercase(e.target);
+  }, true);
+
+  window.applyUppercaseToElement = applyUppercase;
+})();
+

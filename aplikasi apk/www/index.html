@@ -159,7 +159,7 @@
           <p>Banjaran Kota</p>
         </div>
         <button type="button" class="apk-portal-theme-btn" onclick="toggleDarkMode()" title="Ganti Tema">
-          <i class="bi bi-moon-stars-fill"></i>
+          <i id="apkPortalThemeIcon" class="bi bi-moon-stars-fill"></i>
         </button>
       </div>
 
@@ -256,6 +256,10 @@
           <span class="pulse-indicator"></span>
           <span>Cloudflare D1 Aktif</span>
         </div>
+        <a href="https://ckgbankot.web.id/download/app-release.apk" class="portal-header-apk-btn d-none-mobile" download title="Unduh Aplikasi CKG Mobile (APK)">
+          <i class="bi bi-android2"></i>
+          <span>App Mobile</span>
+        </a>
         <button type="button" class="portal-theme-toggle-btn" onclick="toggleDarkMode()" title="Ganti Mode Tema (Terang / Gelap)">
           <i id="portalGateThemeIcon" class="bi bi-moon-stars-fill" style="color: #64748b;"></i>
           <span id="portalGateThemeText">Mode Gelap</span>
@@ -266,11 +270,12 @@
     <main class="portal-gate-main portal-web-only">
       <div class="portal-hero-top">
         <div class="portal-hero-tag">
-          <i class="bi bi-shield-check"></i>
-          <span>Portal Resmi Pelayanan CKG • Integrasi Layanan Primer (ILP) 2026</span>
+          <span class="hero-tag-sparkle"><i class="bi bi-stars"></i></span>
+          <span>Portal Pelayanan CKG • Integrasi Layanan Primer (ILP) 2026</span>
         </div>
 
         <div class="portal-banner-container">
+          <div class="portal-banner-glow"></div>
           <img src="banner_ckg.png" alt="CKG Puskesmas Banjaran Kota" class="portal-hero-banner" loading="eager" decoding="async">
         </div>
 
@@ -279,16 +284,17 @@
         </h1>
         <div class="portal-headline-badge-wrap">
           <span class="portal-headline-instansi">
-            <i class="bi bi-hospital"></i> Puskesmas Banjaran Kota
+            <i class="bi bi-hospital-fill"></i> Wilayah Kerja Puskesmas Banjaran Kota
           </span>
         </div>
         <p class="portal-headline-subtitle">
-          Silakan tentukan pintu masuk sesuai instansi atau peran Anda untuk memulai pencatatan dan monitoring hasil skrining kesehatan By Name By Address.
+          Tentukan gerbang masuk sesuai instansi atau peran tugas Anda untuk mengakses sistem pencatatan dan monitoring skrining kesehatan siklus hidup By Name By Address.
         </p>
       </div>
 
       <div class="portal-cards-grid">
 
+        <!-- KARTU 1: PUSKESMAS -->
         <div class="portal-card card-puskesmas" onclick="openPuskesmasGate()">
           <div class="card-accent-bar"></div>
           <div class="card-glow-layer"></div>
@@ -299,35 +305,36 @@
                 <i class="bi bi-hospital-fill"></i>
               </div>
               <span class="portal-card-pill pill-puskesmas">
-                <i class="bi bi-shield-check"></i> Staf & Nakes
+                <span class="pill-dot dot-emerald"></span> Internal Puskesmas
               </span>
             </div>
 
             <div class="portal-card-body">
               <h2 class="portal-card-title">Puskesmas Banjaran Kota</h2>
               <p class="portal-card-desc">
-                Pintu masuk tenaga kesehatan, dokter, perawat, analis, koordinator program, dan administrator internal puskesmas.
+                Pintu masuk tenaga kesehatan, dokter, perawat, bidan, nutrisionis, analis lab, dan staf program internal puskesmas.
               </p>
 
               <ul class="portal-card-features">
-                <li><i class="bi bi-check-circle-fill"></i> Rekam Medis & Skrining CKG Lengkap</li>
-                <li><i class="bi bi-check-circle-fill"></i> Pelayanan Dalam Gedung & Lapangan</li>
-                <li><i class="bi bi-check-circle-fill"></i> Otomasi ASIK / ENCO & Rekap Ekspor</li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Skrining CKG Siklus Hidup (Bayi s/d Lansia)</span></li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Manajemen Pelayanan Dalam & Luar Gedung</span></li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Otomasi ENCO / ASIK & Rekap Ekspor BNBA</span></li>
               </ul>
             </div>
 
             <div class="portal-card-bottom">
               <button type="button" class="portal-card-btn btn-puskesmas" onclick="openPuskesmasGate(); event.stopPropagation();">
-                <span>Masuk Portal Puskesmas</span>
+                <span>Buka Portal Pegawai</span>
                 <i class="bi bi-arrow-right"></i>
               </button>
               <div class="portal-card-hint">
-                <i class="bi bi-shield-lock-fill"></i> Sandi Gerbang Akses Pegawai
+                <i class="bi bi-shield-lock-fill"></i> Sandi Gerbang Akses Staf Medis
               </div>
             </div>
           </div>
         </div>
 
+        <!-- KARTU 2: SEKOLAH -->
         <div class="portal-card card-sekolah" onclick="openSekolahPortal()">
           <div class="card-accent-bar"></div>
           <div class="card-glow-layer"></div>
@@ -338,7 +345,7 @@
                 <i class="bi bi-mortarboard-fill"></i>
               </div>
               <span class="portal-card-pill pill-sekolah">
-                <i class="bi bi-building"></i> Instansi Pendidikan
+                <span class="pill-dot dot-blue"></span> 39+ Sekolah Binaan
               </span>
             </div>
 
@@ -349,9 +356,9 @@
               </p>
 
               <ul class="portal-card-features">
-                <li><i class="bi bi-check-circle-fill"></i> Terintegrasi 39+ Sekolah Binaan</li>
-                <li><i class="bi bi-check-circle-fill"></i> Skrining Massal Anak Sekolah Mandiri</li>
-                <li><i class="bi bi-check-circle-fill"></i> Evaluasi Status Gizi, Anemia & Indera</li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Terintegrasi 39+ Sekolah Binaan Wilayah</span></li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Skrining Massal Anak Sekolah Mandiri</span></li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Evaluasi Status Gizi (IMT/U) & Indera Siswa</span></li>
               </ul>
             </div>
 
@@ -361,12 +368,13 @@
                 <i class="bi bi-arrow-right"></i>
               </button>
               <div class="portal-card-hint">
-                <i class="bi bi-key-fill"></i> Pilih Sekolah & Password UKS
+                <i class="bi bi-key-fill"></i> Pilih Sekolah & Kata Sandi UKS
               </div>
             </div>
           </div>
         </div>
 
+        <!-- KARTU 3: POSYANDU -->
         <div class="portal-card card-posyandu" onclick="openPosyanduPortal()">
           <div class="card-accent-bar"></div>
           <div class="card-glow-layer"></div>
@@ -377,20 +385,20 @@
                 <i class="bi bi-heart-pulse-fill"></i>
               </div>
               <span class="portal-card-pill pill-posyandu">
-                <i class="bi bi-people-fill"></i> Kader Wilayah
+                <span class="pill-dot dot-rose"></span> 60+ Posyandu Desa
               </span>
             </div>
 
             <div class="portal-card-body">
               <h2 class="portal-card-title">Posyandu / Kader</h2>
               <p class="portal-card-desc">
-                Akses kader posyandu desa/kelurahan untuk pelaksanaan skrining terpadu balita, anak, remaja, dewasa & lansia.
+                Akses kader posyandu wilayah desa/kelurahan untuk pelaksanaan skrining terpadu balita, anak, remaja, dewasa & lansia.
               </p>
 
               <ul class="portal-card-features">
-                <li><i class="bi bi-check-circle-fill"></i> Skrining Terpadu Balita s/d Lansia</li>
-                <li><i class="bi bi-check-circle-fill"></i> Deteksi Dini PTM & Antropometri Balita</li>
-                <li><i class="bi bi-check-circle-fill"></i> Cetak Kartu Skrining Pasien Cepat</li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Skrining Terpadu Balita hingga Lansia</span></li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Deteksi Dini Faktor Risiko PTM & Antropometri</span></li>
+                <li><span class="feat-icon"><i class="bi bi-check2"></i></span> <span>Cetak Bukti Skrining CKG Pasien Cepat</span></li>
               </ul>
             </div>
 
@@ -408,36 +416,37 @@
 
       </div>
 
+      <!-- TRUST STRIP STATISTIK -->
       <div class="portal-trust-strip">
         <div class="trust-item">
-          <div class="trust-icon"><i class="bi bi-hospital"></i></div>
+          <div class="trust-icon trust-icon-emerald"><i class="bi bi-hospital-fill"></i></div>
           <div class="trust-info">
-            <span class="trust-number">1 Puskesmas</span>
-            <span class="trust-sub">Induk Banjaran Kota</span>
+            <span class="trust-number">1 Puskesmas Induk</span>
+            <span class="trust-sub">Puskesmas Banjaran Kota</span>
           </div>
         </div>
         <div class="trust-divider"></div>
         <div class="trust-item">
-          <div class="trust-icon"><i class="bi bi-mortarboard"></i></div>
+          <div class="trust-icon trust-icon-blue"><i class="bi bi-mortarboard-fill"></i></div>
           <div class="trust-info">
-            <span class="trust-number">39+ Sekolah</span>
-            <span class="trust-sub">Jenjang SD s/d SMA</span>
+            <span class="trust-number">39+ Sekolah Binaan</span>
+            <span class="trust-sub">Jenjang SD, SMP, SMA/SMK</span>
           </div>
         </div>
         <div class="trust-divider"></div>
         <div class="trust-item">
-          <div class="trust-icon"><i class="bi bi-geo-alt"></i></div>
+          <div class="trust-icon trust-icon-rose"><i class="bi bi-geo-alt-fill"></i></div>
           <div class="trust-info">
-            <span class="trust-number">60+ Posyandu</span>
-            <span class="trust-sub">Kader Kesehatan Desa</span>
+            <span class="trust-number">60+ Posyandu Aktif</span>
+            <span class="trust-sub">Kader Kesehatan Desa & Posbindu</span>
           </div>
         </div>
         <div class="trust-divider"></div>
         <div class="trust-item">
-          <div class="trust-icon"><i class="bi bi-shield-check"></i></div>
+          <div class="trust-icon trust-icon-cyan"><i class="bi bi-shield-check"></i></div>
           <div class="trust-info">
-            <span class="trust-number">Siklus Hidup</span>
-            <span class="trust-sub">Standar Integrasi ILP</span>
+            <span class="trust-number">Standar ILP Kemenkes</span>
+            <span class="trust-sub">Siklus Hidup Terpadu (BNBA)</span>
           </div>
         </div>
       </div>
@@ -445,11 +454,11 @@
 
     <footer class="portal-gate-footer portal-web-only">
       <div class="portal-footer-left">
-        <span>© 2026 Puskesmas Banjaran Kota • Sistem Informasi CKG (BNBA)</span>
+        <span>© 2026 Puskesmas Banjaran Kota • Sistem Informasi CKG Siklus Hidup (BNBA)</span>
       </div>
       <div class="portal-footer-right">
-        <span class="footer-badge"><i class="bi bi-lock-fill"></i> SSL Terenkripsi</span>
-        <span class="footer-badge"><i class="bi bi-cloud-check-fill"></i> Cloudflare D1</span>
+        <span class="footer-badge"><i class="bi bi-shield-fill-check" style="color: #10b981;"></i> SSL 256-Bit</span>
+        <span class="footer-badge"><i class="bi bi-cloud-check-fill" style="color: #0284c7;"></i> Cloudflare D1</span>
         <span class="footer-badge badge-author"><i class="bi bi-person-fill"></i> Mochamad Fauzie, S.Gz</span>
         <span class="footer-badge badge-version">v2.0 Modern Edition</span>
       </div>
@@ -726,8 +735,8 @@
         </div>
 
         <div class="visual-footer-info">
-          <span>Create by: Mochamad Fauzie,S.Gz @2026</span>
-          <span>v1.1</span>
+          <span>Dibuat oleh: Mochamad Fauzie, S.Gz © 2026</span>
+          <span>v2.0</span>
         </div>
       </div>
 
@@ -765,7 +774,7 @@
             <p>Silakan pilih Nama Pegawai Anda untuk masuk ke sistem CKG.</p>
           </div>
 
-          <form id="loginForm" class="login-form">
+          <form id="loginForm" onsubmit="event.preventDefault(); handleLogin(event); return false;" class="login-form">
 
             <div class="form-group">
               <label class="form-label" for="loginPegawaiSelect">Pilih Nama Pegawai <span
@@ -805,7 +814,7 @@
             </div>
 
             <!-- Primary CTA Button -->
-            <button type="submit" class="btn btn-primary" id="btnLoginSubmit"
+            <button type="submit" class="btn btn-primary" id="btnLoginSubmit" onclick="event.preventDefault(); handleLogin(event);"
               style="height: 48px; font-size: 14.5px; border-radius: var(--radius-md); font-weight: 800; background: linear-gradient(135deg, #0284c7, #2563eb); margin-top: 6px;">
               Masuk Aplikasi <i class="bi bi-box-arrow-in-right" style="font-size: 16px;"></i>
             </button>
@@ -1243,7 +1252,7 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-primary" onclick="exportToXLSX()">
+              <button class="btn btn-emerald" onclick="exportToXLSX()">
                 <i class="bi bi-file-earmark-excel-fill"></i> Ekspor Excel (XLSX)
               </button>
               <button class="btn btn-secondary" onclick="renderLaporanView()">
@@ -1386,27 +1395,27 @@
               <button class="btn btn-primary" onclick="openInputModal('Luar Gedung')">
                 <i class="bi bi-plus-lg"></i> Input Data CKG
               </button>
-              <button class="btn btn-secondary" onclick="openImportModal()">
+              <button class="btn btn-primary" onclick="openImportModal()">
                 <i class="bi bi-file-earmark-arrow-up"></i> Import Data
               </button>
-              <button class="btn btn-secondary" onclick="exportToXLSX()">
+              <button class="btn btn-emerald" onclick="exportToXLSX()">
                 <i class="bi bi-file-earmark-arrow-down"></i> Download Data
               </button>
-              <button class="btn btn-secondary" onclick="exportToBotEncoXLSX()" title="Download Excel Format Bot ENCO untuk CKG Umum" style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; font-weight: 700; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.25);">
+              <button class="btn btn-emerald" onclick="exportToBotEncoXLSX()" title="Download Excel Format Bot ENCO untuk CKG Umum">
                 <i class="bi bi-robot"></i> Format Bot ENCO
               </button>
               <button class="btn btn-secondary" onclick="renderTableRecords()">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
               </button>
-              <button class="btn btn-secondary admin-only" id="btnImportAdminCkg" onclick="openAdminImportModal()">
+              <button class="btn btn-primary admin-only" id="btnImportAdminCkg" onclick="openAdminImportModal()">
                 <i class="bi bi-person-lines-fill"></i> Import Admin
               </button>
-              <button class="btn btn-secondary admin-only" id="btnAiRepairRecordsAdmin"
+              <button class="btn btn-emerald admin-only" id="btnAiRepairRecordsAdmin"
                 onclick="repairAllRecordsAddressWithAi()"
                 title="Perbaiki Kelurahan, Kecamatan, Kab/Kota, Provinsi di Data CKG, SIMPUS & Sekolah Otomatis">
                 <i class="bi bi-magic"></i> Auto-Repair AI
               </button>
-              <button class="btn btn-secondary admin-only" id="btnBulkUpdateDateAdmin"
+              <button class="btn btn-primary admin-only" id="btnBulkUpdateDateAdmin"
                 onclick="openBulkUpdateDateModal()" title="Ubah Tanggal Entry Massal Bulan & Tahun Target">
                 <i class="bi bi-calendar-range-fill"></i> Ubah Tgl Massal
               </button>
@@ -1558,16 +1567,16 @@
               <button class="btn btn-primary" onclick="openInputModal('Luar Gedung', false, 'ckg-gratis')">
                 <i class="bi bi-plus-lg"></i> Input Data CKG
               </button>
-              <button class="btn btn-secondary" onclick="openBotQueueModal('UMUM')" title="Kelola Antrean Pasien yang Akan Dientry oleh Bot ENCO" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-weight: 700; border: none; box-shadow: 0 2px 6px rgba(2,132,199,0.25);">
+              <button class="btn btn-primary" onclick="openBotQueueModal('UMUM')" title="Kelola Antrean Pasien yang Akan Dientry oleh Bot ENCO">
                 <i class="bi bi-robot"></i> Antrean Bot CKG Umum <span id="badgeQueueCountUmum" class="badge" style="background: rgba(255,255,255,0.25); margin-left: 4px; font-size: 11px;">0</span>
               </button>
-              <button class="btn btn-secondary" onclick="sendSelectedCkgGratisToBotQueue()" title="Kirim Pasien Terpilih ke Antrean Bot ENCO" style="background: #f0fdf4; color: #166534; border: 1.5px solid #bbf7d0; font-weight: 700;">
-                <i class="bi bi-cloud-arrow-up-fill" style="color: #16a34a;"></i> Masukkan ke Antrean Bot
+              <button class="btn btn-emerald" onclick="sendSelectedCkgGratisToBotQueue()" title="Kirim Pasien Terpilih ke Antrean Bot ENCO">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Masukkan ke Antrean Bot
               </button>
-              <button class="btn btn-secondary" onclick="exportToBotEncoXLSX('ckg-gratis')" title="Download Excel Format Bot ENCO untuk CKG Umum" style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; font-weight: 700; border: none; box-shadow: 0 2px 6px rgba(16,185,129,0.25);">
+              <button class="btn btn-emerald" onclick="exportToBotEncoXLSX('ckg-gratis')" title="Download Excel Format Bot ENCO untuk CKG Umum">
                 <i class="bi bi-download"></i> Download Format Bot ENCO
               </button>
-              <button class="btn btn-secondary" onclick="openImportModal('ckg-gratis')">
+              <button class="btn btn-primary" onclick="openImportModal('ckg-gratis')">
                 <i class="bi bi-file-earmark-arrow-up"></i> Import Data
               </button>
               <button class="btn btn-secondary" onclick="fetchCkgGratisFromCloud(true)">
@@ -1726,7 +1735,7 @@
             </div>
 
             <div class="action-buttons-group">
-              <button class="btn btn-primary" onclick="exportEncoToExcel()" title="Download Excel (.xlsx)">
+              <button class="btn btn-emerald" onclick="exportEncoToExcel()" title="Download Excel (.xlsx)">
                 <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
               </button>
               <button class="btn btn-secondary" onclick="renderEncoView()" title="Muat ulang data">
@@ -1958,7 +1967,7 @@
                 <button class="btn btn-secondary btn-sm" onclick="copyEncoReportWebSummary()" title="Salin Ringkasan Teks">
                   <i class="bi bi-clipboard-check"></i> Salin Ringkasan
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="exportEncoReportsExcel()" style="background: #10b981; border-color: #059669;" title="Download Excel">
+                <button class="btn btn-emerald btn-sm" onclick="exportEncoReportsExcel()" title="Download Excel">
                   <i class="bi bi-file-earmark-excel-fill"></i> Download Excel
                 </button>
                 <button class="btn btn-secondary btn-sm" onclick="loadEncoReportsWeb()" title="Segarkan">
@@ -2079,17 +2088,17 @@
               <button class="btn btn-primary" onclick="importSimpusXlsx()">
                 <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Data XLSX
               </button>
-              <button class="btn btn-secondary admin-koordinator-only" onclick="openBagiPetugasModal()">
+              <button class="btn btn-emerald admin-koordinator-only" onclick="openBagiPetugasModal()">
                 <i class="bi bi-person-fill-gear"></i> Bagi Data ke Petugas
               </button>
-              <button class="btn btn-secondary admin-only" id="btnSimpusAdminMultiImport"
+              <button class="btn btn-primary admin-only" id="btnSimpusAdminMultiImport"
                 onclick="openSimpusAdminMultiImportModal()">
                 <i class="bi bi-person-lines-fill"></i> Import Multi-Petugas
               </button>
-              <button class="btn btn-secondary" onclick="openEksporPerPetugasModal()">
+              <button class="btn btn-emerald" onclick="openEksporPerPetugasModal()">
                 <i class="bi bi-file-earmark-spreadsheet-fill"></i> Ekspor Petugas
               </button>
-              <button class="btn btn-secondary" onclick="openDukcapilModal()">
+              <button class="btn btn-primary" onclick="openDukcapilModal()">
                 <i class="bi bi-shield-check"></i> Verifikasi Dukcapil
               </button>
               <button class="btn btn-secondary" onclick="renderSimpusView()">
@@ -2275,57 +2284,68 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-purple" onclick="openTambahSiswaModal()" id="btnTambahSiswaSekolah">
+              <button class="btn" onclick="openTambahSiswaModal()" id="btnTambahSiswaSekolah"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-person-plus-fill"></i> Tambah Siswa
               </button>
-              <button class="btn btn-warning" id="btnAnomaliNikSekolah" onclick="openAnomaliNikModal()"
+              <button class="btn" id="btnAnomaliNikSekolah" onclick="openAnomaliNikModal()"
                 title="Cek & Kelola Data Siswa yang NIK-nya Kurang, Lebih, atau Kosong"
-                style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);">
+                style="background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);">
                 <i class="bi bi-exclamation-triangle-fill"></i> Data NIK Bermasalah <span id="badgeCountAnomaliNik" class="badge" style="background: rgba(255,255,255,0.3); color: #fff; margin-left: 4px; font-size: 11px;">0</span>
               </button>
               <button class="btn" id="btnAbsensiTtdSekolah" onclick="openModalAbsensiTtd()"
                 title="Daftar Siswi Remaja Putri & Absensi Minum Tablet Tambah Darah (TTD)"
-                style="background: linear-gradient(135deg, #ec4899, #db2777); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.25);">
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
                 <i class="bi bi-capsule"></i> Absen Minum TTD Siswi <span id="badgeCountTtdTotal" class="badge" style="background: rgba(255,255,255,0.3); color: #fff; margin-left: 4px; font-size: 11px;">0</span>
               </button>
-              <button class="btn btn-secondary" onclick="openBotQueueModal('SEKOLAH')" title="Kelola Antrean Siswa Sekolah untuk Bot ENCO" style="background: linear-gradient(135deg, #0284c7, #2563eb); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+              <button class="btn" onclick="openBotQueueModal('SEKOLAH')" title="Kelola Antrean Siswa Sekolah untuk Bot ENCO"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-robot"></i> Antrean Bot Sekolah <span id="badgeQueueCountSekolah" class="badge" style="background: rgba(255,255,255,0.25); margin-left: 4px; font-size: 11px;">0</span>
               </button>
-              <button class="btn btn-secondary" onclick="sendCurrentSekolahToBotQueue()" title="Kirim Seluruh Siswa di Kelas Ini ke Antrean Bot ENCO" style="background: #f0fdf4; color: #166534; border: 1.5px solid #bbf7d0; font-weight: 700;">
-                <i class="bi bi-cloud-arrow-up-fill" style="color: #16a34a;"></i> Kirim Kelas ke Antrean Bot
+              <button class="btn" onclick="sendCurrentSekolahToBotQueue()" title="Kirim Seluruh Siswa di Kelas Ini ke Antrean Bot ENCO"
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
+                <i class="bi bi-cloud-arrow-up-fill"></i> Kirim Kelas ke Antrean Bot
               </button>
-              <button class="btn btn-amber" onclick="openImportSekolahModal()">
+              <button class="btn" onclick="openImportSekolahModal()"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-file-earmark-arrow-up-fill"></i> Import Excel
               </button>
-              <button class="btn btn-emerald" id="btnExportSekolah" onclick="exportSekolahToXLSX()">
+              <button class="btn" id="btnExportSekolah" onclick="exportSekolahToXLSX()"
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
                 <i class="bi bi-file-earmark-arrow-down-fill"></i> Eksport Excel
               </button>
-              <button class="btn btn-sky" id="btnLaporanSekolah" onclick="openLaporanSekolahModal()"
+              <button class="btn" id="btnLaporanSekolah" onclick="openLaporanSekolahModal()"
                 title="Buka & Cetak Output Laporan Resmi Hasil Pemeriksaan Siswa Sekolah"
-                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-file-earmark-medical-fill"></i> Cetak Laporan Hasil
               </button>
               <button class="btn btn-secondary" id="btnRefreshSekolah" onclick="fetchSekolahRecordsFromCloud(true)">
                 <i class="bi bi-arrow-clockwise"></i> Refresh Data
               </button>
-              <button class="btn btn-indigo admin-only" onclick="openKelolaSekolahModal()"
-                title="Kelola Daftar Master Sekolah: Tambah, Edit, atau Hapus Sekolah (Khusus Admin)" style="background: linear-gradient(135deg, #4f46e5, #4338ca); color: #fff;">
+              <button class="btn admin-only" onclick="openKelolaSekolahModal()"
+                title="Kelola Daftar Master Sekolah: Tambah, Edit, atau Hapus Sekolah (Khusus Admin)"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-building-gear"></i> Kelola Sekolah
               </button>
-              <button class="btn btn-primary admin-koordinator-only" onclick="openNaikKelasModal()"
-                title="Kenaikan Kelas Siswa (Contoh: Kelas 7 -> 8, 8 -> 9, 9 -> LULUS)" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;">
+              <button class="btn admin-koordinator-only" onclick="openNaikKelasModal()"
+                title="Kenaikan Kelas Siswa (Contoh: Kelas 7 -> 8, 8 -> 9, 9 -> LULUS)"
+                style="background: linear-gradient(135deg, #059669, #047857); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);">
                 <i class="bi bi-mortarboard-fill"></i> Naik Kelas
               </button>
-              <button class="btn btn-teal admin-koordinator-only" onclick="openMigrasiSekolahModal()"
-                title="Migrasi / Mutasi Siswa Antar Sekolah" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: #fff;">
+              <button class="btn admin-koordinator-only" onclick="openMigrasiSekolahModal()"
+                title="Migrasi / Mutasi Siswa Antar Sekolah"
+                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);">
                 <i class="bi bi-arrow-left-right"></i> Migrasi Sekolah
               </button>
-              <button class="btn btn-rose admin-koordinator-only" onclick="openDuplicateFinderModal()" title="Cari data ganda / NIK sama yang sudah terlanjur ada di database">
+              <button class="btn admin-koordinator-only" onclick="openDuplicateFinderModal()"
+                title="Cari data ganda / NIK sama yang sudah terlanjur ada di database"
+                style="background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25);">
                 <i class="bi bi-copy"></i> Cek Duplikat
               </button>
-              <button class="btn btn-danger admin-koordinator-only" id="btnHapusSemuaDataSekolah"
+              <button class="btn admin-koordinator-only" id="btnHapusSemuaDataSekolah"
                 onclick="openHapusDataSekolahModal()"
-                title="Hapus Data Siswa: Pilih spesifik Sekolah, Kelas, dan Tahun atau Semua (Khusus Admin / Koordinator)">
+                title="Hapus Data Siswa: Pilih spesifik Sekolah, Kelas, dan Tahun atau Semua (Khusus Admin / Koordinator)"
+                style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: #fff; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);">
                 <i class="bi bi-trash3-fill"></i> Hapus Semua
               </button>
             </div>
@@ -2593,16 +2613,16 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-sky" onclick="openTambahItemModal()" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff;">
+              <button class="btn btn-primary" onclick="openTambahItemModal()">
                 <i class="bi bi-plus-circle-fill"></i> Tambah Item Baru
               </button>
-              <button class="btn btn-emerald" onclick="openCatatPemakaianModal()" style="background: linear-gradient(135deg, #059669, #047857); color: #fff;">
+              <button class="btn btn-emerald" onclick="openCatatPemakaianModal()">
                 <i class="bi bi-clipboard-plus-fill"></i> Catat Pemakaian Lapangan
               </button>
-              <button class="btn btn-purple" onclick="openPeminjamanModal()" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff;">
+              <button class="btn btn-primary" onclick="openPeminjamanModal()">
                 <i class="bi bi-arrow-left-right"></i> Pinjam Alat Medis
               </button>
-              <button class="btn btn-emerald" onclick="exportAlatBnhpToXLSX()" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff;">
+              <button class="btn btn-emerald" onclick="exportAlatBnhpToXLSX()">
                 <i class="bi bi-file-earmark-arrow-down-fill"></i> Eksport Excel
               </button>
               <button class="btn btn-secondary" onclick="fetchAlatBnhpFromCloud(true)">
@@ -2899,7 +2919,7 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-primary" onclick="restoreFilteredRecycle()"
+              <button class="btn btn-emerald" onclick="restoreFilteredRecycle()"
                 title="Pulihkan Seluruh Data Sesuai Filter saat ini">
                 <i class="bi bi-arrow-counterclockwise"></i> Restore Data Terfilter
               </button>
@@ -3047,11 +3067,10 @@
                 </p>
               </div>
               <div class="action-buttons-group">
-                <button class="btn btn-amber" onclick="openCustomLogoModal()">
+                <button class="btn btn-primary" onclick="openCustomLogoModal()">
                   <i class="bi bi-image-fill"></i> Custom Logo PNG
                 </button>
-                <button class="btn btn-emerald" onclick="manualRefreshLiveSessions()"
-                  style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; font-weight: 700;">
+                <button class="btn btn-emerald" onclick="manualRefreshLiveSessions()">
                   <i class="bi bi-arrow-clockwise"></i> Refresh Status Sesi
                 </button>
                 <button class="btn btn-primary" onclick="openAddUserModal()">
@@ -3143,7 +3162,7 @@
                 <select id="adminFilterDesaPosyandu" class="filter-control" onchange="renderAdminPosyanduTable()">
                   <option value="">Semua Desa / Kelurahan</option>
                 </select>
-                <button class="btn btn-primary" onclick="openAddPosyanduModal()" style="background: linear-gradient(135deg, #e11d48, #db2777); border: none;">
+                <button class="btn btn-rose" onclick="openAddPosyanduModal()">
                   <i class="bi bi-plus-circle-fill"></i> + Tambah Posyandu
                 </button>
               </div>
@@ -3226,10 +3245,10 @@
                 </p>
               </div>
               <div class="action-buttons-group">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="resetMenuConfigToDefault()" title="Kembalikan urutan dan hak akses ke pengaturan awal">
+                <button type="button" class="btn btn-danger btn-sm" onclick="resetMenuConfigToDefault()" title="Kembalikan urutan dan hak akses ke pengaturan awal">
                   <i class="bi bi-arrow-counterclockwise"></i> Reset Default
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="saveMenuConfigToCloud()" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); font-weight: 700;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveMenuConfigToCloud()">
                   <i class="bi bi-cloud-check-fill"></i> Simpan Pengaturan Menu
                 </button>
               </div>
@@ -3286,14 +3305,12 @@
               </p>
             </div>
             <div class="action-buttons-group">
-              <button class="btn btn-secondary btn-sm" onclick="downloadKamusAlamatTemplate()"
-                style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; border: none; font-weight: 700; border-radius: 6px; padding: 6px 14px;">
+              <button class="btn btn-primary btn-sm" onclick="downloadKamusAlamatTemplate()">
                 <i class="bi bi-file-earmark-arrow-down-fill"></i> Download Template Excel
               </button>
               <input type="file" id="excelAddressFileInput" accept=".xlsx, .xls, .csv" style="display: none;"
                 onchange="handleExcelAddressUpload(event)">
-              <button class="btn btn-emerald btn-sm" onclick="document.getElementById('excelAddressFileInput').click()"
-                style="background: linear-gradient(135deg, #059669, #10b981); color: #fff; border: none; font-weight: 700; border-radius: 6px; padding: 6px 14px;">
+              <button class="btn btn-emerald btn-sm" onclick="document.getElementById('excelAddressFileInput').click()">
                 <i class="bi bi-file-earmark-excel-fill"></i> Import Kamus Alamat (Excel)
               </button>
             </div>
@@ -3934,7 +3951,7 @@
 
               <div class="form-group">
                 <label class="form-label" for="nama">Nama Lengkap Pasien <span class="required">*</span></label>
-                <input type="text" id="nama" class="form-control" placeholder="Nama Pasien" required>
+                <input type="text" id="nama" class="form-control" placeholder="Nama Pasien" required style="text-transform: uppercase; font-weight: 700;">
               </div>
 
               <div class="form-group">
@@ -3975,14 +3992,14 @@
 
               <div class="form-group">
                 <label class="form-label" for="pekerjaan">Pekerjaan</label>
-                <input type="text" id="pekerjaan" class="form-control">
+                <input type="text" id="pekerjaan" class="form-control" style="text-transform: uppercase;">
               </div>
 
               <!-- Alamat Lengkap (Full Width) -->
               <div class="form-group full-width" style="grid-column: 1 / -1;">
                 <label class="form-label" for="alamat">Alamat Lengkap <span class="required">*</span></label>
                 <textarea id="alamat" class="form-control" rows="2" placeholder="Jalan, RT/RW, Dusun / Lingkungan" required
-                  style="width: 100%; box-sizing: border-box; resize: vertical; min-height: 52px; font-size: 13px;"></textarea>
+                  style="width: 100%; box-sizing: border-box; resize: vertical; min-height: 52px; font-size: 13px; text-transform: uppercase;"></textarea>
               </div>
 
               <!-- Wilayah: Urutan Hierarki Benar (Provinsi -> Kab/Kota -> Kecamatan -> Kelurahan) dengan Fitur Search -->
@@ -4145,7 +4162,7 @@
                   <label class="form-label" for="nama_wali">
                     Nama Lengkap Wali <span class="required" id="reqNamaWali" style="color: #dc2626;">*</span>
                   </label>
-                  <input type="text" id="nama_wali" name="nama_wali" class="form-control" placeholder="Masukkan Nama Lengkap Wali">
+                  <input type="text" id="nama_wali" name="nama_wali" class="form-control" placeholder="Masukkan Nama Lengkap Wali" style="text-transform: uppercase; font-weight: 700;">
                 </div>
 
                 <!-- Tanggal Lahir Wali -->
@@ -5941,7 +5958,7 @@
               </label>
               <input type="text" id="periksaCatatanRujukan" class="form-control"
                 placeholder="Contoh: Rujuk Poli Gigi Puskesmas untuk tambal karies (Opsional)"
-                style="font-weight: 600;">
+                style="font-weight: 600; text-transform: uppercase;">
               <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Kosongkan jika siswa dalam kondisi normal / tidak dirujuk.</div>
             </div>
           </div>
@@ -7285,7 +7302,7 @@
 
       <div class="modal-footer" style="padding: 14px 22px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 10px;">
         <button type="button" class="btn btn-secondary" onclick="closePeminjamanModal()" style="border-radius: 8px; font-weight: 600;">Batal</button>
-        <button type="button" class="btn btn-purple" onclick="savePeminjaman()" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #fff; border-radius: 8px; font-weight: 700; padding: 7px 18px;">
+        <button type="button" class="btn btn-primary" onclick="savePeminjaman()" style="border-radius: 8px; font-weight: 700; padding: 7px 18px;">
           <i class="bi bi-arrow-left-right"></i> Simpan Peminjaman
         </button>
       </div>

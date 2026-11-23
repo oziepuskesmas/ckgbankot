@@ -2468,7 +2468,7 @@ async function triggerCekNikEnco(target = 'pasien') {
         const elJkWali = document.getElementById('jenis_kelamin_wali');
         const elWaWali = document.getElementById('no_whatsapp_wali');
 
-        if (elNamaWali) elNamaWali.value = rawNama;
+        if (elNamaWali) elNamaWali.value = String(rawNama || '').toUpperCase();
         if (elDobWali && rawDob) {
           elDobWali.value = (typeof formatDateToYYYYMMDD === 'function') ? formatDateToYYYYMMDD(rawDob) : rawDob;
         }
@@ -2488,7 +2488,7 @@ async function triggerCekNikEnco(target = 'pasien') {
         const elPek = document.getElementById('pekerjaan');
         const elAlm = document.getElementById('alamat');
 
-        if (elNama) elNama.value = rawNama;
+        if (elNama) elNama.value = String(rawNama || '').toUpperCase();
         if (elDob && rawDob) {
           elDob.value = (typeof formatDateToYYYYMMDD === 'function') ? formatDateToYYYYMMDD(rawDob) : rawDob;
           calculateAgeFromDOB(true);
@@ -2501,8 +2501,8 @@ async function triggerCekNikEnco(target = 'pasien') {
           const matchNikah = Array.from(elNikah.options).find(o => o.value.toLowerCase() === rawNikah.toLowerCase());
           if (matchNikah) elNikah.value = matchNikah.value;
         }
-        if (elPek) elPek.value = rawPekerjaan;
-        if (elAlm) elAlm.value = rawAlamat;
+        if (elPek) elPek.value = String(rawPekerjaan || '').toUpperCase();
+        if (elAlm) elAlm.value = String(rawAlamat || '').toUpperCase();
 
         // Dropdown Wilayah
         const provSelect = document.getElementById('provinsi');

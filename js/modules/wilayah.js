@@ -526,6 +526,15 @@ async function triggerManualWilayahInput(selectId, tier, prefillValue = '') {
     cancelButtonText: 'Batal',
     confirmButtonColor: '#059669',
     cancelButtonColor: '#64748b',
+    didOpen: () => {
+      const inp = Swal.getInput();
+      if (inp) {
+        inp.style.textTransform = 'uppercase';
+        inp.addEventListener('input', () => {
+          inp.value = inp.value.toUpperCase();
+        });
+      }
+    },
     inputValidator: (val) => {
       const v = (val || '').trim();
       if (!v) return 'Nama wilayah tidak boleh kosong!';

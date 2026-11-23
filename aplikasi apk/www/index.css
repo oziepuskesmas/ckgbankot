@@ -108,15 +108,6 @@ body {
   background: #ffffff;
 }
 
-@media (max-width: 900px) {
-  .split-auth-card {
-    grid-template-columns: 1fr;
-  }
-  .split-visual-panel {
-    display: none;
-  }
-}
-
 /* LEFT SIDE: Visual Branding Panel */
 .split-visual-panel {
   background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #047857 100%);
@@ -127,6 +118,21 @@ body {
   position: relative;
   overflow: hidden;
   color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .split-auth-card {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  .split-visual-panel {
+    display: none !important;
+  }
 }
 
 .split-visual-panel::before {
@@ -258,6 +264,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.visual-footer-info span {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 /* RIGHT SIDE: Auth Form Fields Panel */
@@ -563,6 +574,17 @@ body {
   font-size: 15px;
 }
 
+/* Strict enforcement: Hidden disabled menus */
+.nav-tab-btn.menu-disabled-hidden,
+.apk-nav-btn.menu-disabled-hidden,
+.apk-sidebar-item.menu-disabled-hidden,
+.nav-tab-btn[style*="display: none"],
+.apk-nav-btn[style*="display: none"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* Main Container Area */
 .main-content {
   padding: 24px 28px;
@@ -631,88 +653,87 @@ body {
   white-space: nowrap;
 }
 
-/* Primary Hero Buttons (Add / Submit / Main CTA): Solid Royal Indigo Gradient */
+/* Primary Hero Buttons (Add / Submit / Main CTA / Input / Manage): Solid Ocean Blue Gradient (Kaya Cetak Laporan) */
 .btn-primary,
+.btn-blue,
+.btn-sky,
 .btn-purple,
 .btn-indigo {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%) !important;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #4338ca !important;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25) !important;
+  border: 1px solid #0284c7 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
 }
 .btn-primary:hover,
+.btn-blue:hover,
+.btn-sky:hover,
 .btn-purple:hover,
 .btn-indigo:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%) !important;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35) !important;
   transform: translateY(-1px);
 }
 
-/* Secondary Action Buttons (Import, Export, Bagi Data, Verifikasi): Soft Indigo Lavender Surface */
-.btn-secondary,
-.btn-amber,
+/* Emerald Green Buttons (Export, Download, Excel, Bot Submission, Positive): Solid Vibrant Green */
 .btn-emerald,
-.btn-cyan,
-.btn-blue {
-  background: #eef2ff !important;
-  border: 1px solid #c7d2fe !important;
-  color: #3730a3 !important;
-  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.05) !important;
+.btn-success,
+.btn-green {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #059669 !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
 }
-.btn-secondary:hover,
-.btn-amber:hover,
 .btn-emerald:hover,
-.btn-cyan:hover,
-.btn-blue:hover {
-  background: #e0e7ff !important;
-  color: #312e81 !important;
-  border-color: #a5b4fc !important;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.12) !important;
+.btn-success:hover,
+.btn-green:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35) !important;
   transform: translateY(-1px);
 }
 
-.btn-rose {
-  background: #fff1f2 !important;
-  border: 1px solid #fecdd3 !important;
-  color: #be123c !important;
-  box-shadow: 0 1px 3px rgba(225, 29, 72, 0.08) !important;
-}
-.btn-rose:hover {
-  background: #ffe4e6 !important;
-  color: #9f1239 !important;
-  border-color: #fda4af !important;
-  box-shadow: 0 2px 6px rgba(225, 29, 72, 0.15) !important;
-  transform: translateY(-1px);
-}
-
-/* Utility / Refresh / Filter Ghost Buttons: Clean Slate Navy */
-.btn-slate,
-.btn-outline-secondary {
-  background: #f8fafc !important;
-  border: 1px solid #cbd5e1 !important;
-  color: #475569 !important;
-}
-.btn-slate:hover,
-.btn-outline-secondary:hover {
-  background: #f1f5f9 !important;
-  color: #1e293b !important;
-  border-color: #94a3b8 !important;
-  transform: translateY(-1px);
-}
-
-/* Destructive / Danger Buttons: Refined Soft Rose */
+/* Destructive / Danger Buttons (Delete / Reset / Anomali): Solid Vibrant Red */
 .btn-danger,
-.btn-rose {
-  background: #fef2f2 !important;
-  border: 1px solid #fecaca !important;
-  color: #dc2626 !important;
-  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.05) !important;
+.btn-red {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #dc2626 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25) !important;
 }
 .btn-danger:hover,
+.btn-red:hover {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+.btn-rose {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #e11d48 !important;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.25) !important;
+}
 .btn-rose:hover {
-  background: #fee2e2 !important;
-  color: #b91c1c !important;
-  border-color: #fca5a5 !important;
+  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%) !important;
+  box-shadow: 0 6px 16px rgba(225, 29, 72, 0.35) !important;
+  transform: translateY(-1px);
+}
+
+/* Secondary / Refresh / Neutral: Clean Crisp Slate */
+.btn-secondary,
+.btn-slate,
+.btn-outline-secondary {
+  background: #ffffff !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+.btn-secondary:hover,
+.btn-slate:hover,
+.btn-outline-secondary:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
   transform: translateY(-1px);
 }
 
@@ -2235,33 +2256,36 @@ body:not(.swal2-shown) .swal2-container {
    ✨ PREMIUM & STYLISH SWEETALERT2 MODAL CUSTOM THEME
    ========================================================================== */
 
-/* Modal Backdrop Overlay (Only for standard dialog modals, NOT toasts) */
-.swal2-container.swal2-backdrop-show:not(.swal2-toast-container):not(.swal2-top-end) {
+/* Modal Backdrop Overlay (Only for standard dialog modals, NEVER for toasts) */
+body:not(.swal2-toast-shown) .swal2-container.swal2-backdrop-show:not(.swal2-toast-container):not(.swal2-top-end):not(.swal2-bottom-end):not(.swal2-top-start):not(.swal2-bottom-start) {
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   background: rgba(15, 23, 42, 0.45) !important;
 }
 
-/* Toast Notifications Container (Remove dark gray background & blur overlay) */
+/* Toast Notifications Container (Completely transparent & zero interference) */
+body.swal2-toast-shown .swal2-container,
 .swal2-container.swal2-toast-container,
-.swal2-container.swal2-top-end,
-.swal2-container.swal2-top-start,
 .swal2-container.swal2-bottom-end,
 .swal2-container.swal2-bottom-start,
-body.swal2-toast-shown .swal2-container {
+.swal2-container.swal2-top-end,
+.swal2-container.swal2-top-start {
   background: transparent !important;
   background-color: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
   pointer-events: none !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
 }
 
 .swal2-toast {
   pointer-events: auto !important;
 }
 
-.swal2-popup {
+.swal2-popup:not(.swal2-toast) {
   border-radius: 24px !important;
   padding: 32px 28px 28px 28px !important;
   background: #ffffff !important;
@@ -2336,14 +2360,17 @@ body.swal2-toast-shown .swal2-container {
 }
 
 .swal2-styled.swal2-confirm {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
   color: #ffffff !important;
   border: none !important;
 }
 
+.swal2-styled.swal2-confirm:not([style*="background-color"]) {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+}
+
 .swal2-styled.swal2-confirm:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35) !important;
+  filter: brightness(1.08);
 }
 
 .swal2-styled.swal2-cancel {
@@ -2402,24 +2429,57 @@ body.swal2-toast-shown .swal2-container {
 }
 
 /* Toast Notifications Custom Styling */
+.swal2-popup.swal2-toast,
 .swal2-toast {
-  border-radius: 16px !important;
-  padding: 12px 18px !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
   background: #ffffff !important;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(226, 232, 240, 0.9) !important;
   font-family: 'Plus Jakarta Sans', sans-serif !important;
+  overflow: hidden !important;
+  width: auto !important;
+  max-width: 340px !important;
+  box-sizing: border-box !important;
+  margin: 0 16px 16px 0 !important;
 }
 
+.swal2-popup.swal2-toast::-webkit-scrollbar,
+.swal2-toast::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.swal2-popup.swal2-toast .swal2-title,
 .swal2-toast .swal2-title {
-  font-size: 13.5px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
   color: #0f172a !important;
   margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
+.swal2-popup.swal2-toast .swal2-icon,
 .swal2-toast .swal2-icon {
-  margin: 0 10px 0 0 !important;
-  scale: 0.95;
+  margin: 0 8px 0 0 !important;
+  width: 20px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  font-size: 11px !important;
+  border-width: 1.5px !important;
+  flex-shrink: 0 !important;
+  align-self: center !important;
+}
+
+.swal2-popup.swal2-toast .swal2-timer-progress-bar,
+.swal2-toast .swal2-timer-progress-bar {
+  height: 2.5px !important;
+  bottom: 0 !important;
+  background: #059669 !important;
 }
 
 /* Inputs, Selects & Textareas inside Swal Modals */
@@ -3762,22 +3822,26 @@ body.dark-mode .custom-swal-cancel:hover {
 }
 
 /* SweetAlert2 Toast Notifications in Dark Mode */
+body.dark-mode .swal2-popup.swal2-toast,
 body.dark-mode .swal2-toast {
   background: #1e293b !important;
   border: 1px solid #334155 !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(51, 65, 85, 0.8) !important;
 }
 
+body.dark-mode .swal2-popup.swal2-toast .swal2-title,
 body.dark-mode .swal2-toast .swal2-title {
   color: #f8fafc !important;
 }
 
+body.dark-mode .swal2-popup.swal2-toast .swal2-html-container,
 body.dark-mode .swal2-toast .swal2-html-container {
   color: #cbd5e1 !important;
 }
 
-body.dark-mode .swal2-timer-progress-bar {
-  background: #3b82f6 !important;
+body.dark-mode .swal2-popup.swal2-toast .swal2-timer-progress-bar,
+body.dark-mode .swal2-toast .swal2-timer-progress-bar {
+  background: #10b981 !important;
 }
 
 /* Custom Standard Toasts in Dark Mode */
@@ -4731,12 +4795,13 @@ body.dark-mode .combobox-option-item.selected {
      1. LOGIN FORM PANEL (Ultra Clean Mobile Card)
      ========================================================================== */
   .split-form-panel {
-    padding: 28px 18px !important;
+    padding: 70px 18px 30px 18px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
     min-height: 100vh !important;
     background: #ffffff !important;
+    box-sizing: border-box !important;
   }
 
   .form-panel-content {
@@ -6818,20 +6883,34 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   top: 0; left: 0; width: 100vw; height: 100vh;
   background-color: #f8fafc;
   background-image: 
-    radial-gradient(at 0% 0%, #ecfdf5 0px, transparent 45%),
-    radial-gradient(at 100% 0%, #eff6ff 0px, transparent 45%),
-    radial-gradient(at 50% 100%, #f0fdf4 0px, transparent 50%);
+    radial-gradient(at 0% 0%, #ecfdf5 0px, transparent 48%),
+    radial-gradient(at 100% 0%, #eff6ff 0px, transparent 48%),
+    radial-gradient(at 50% 100%, #f0fdf4 0px, transparent 52%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   z-index: 9998;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 20px 24px;
+  padding: 18px 24px 16px 24px;
   color: #0f172a;
   transition: opacity 0.35s ease, visibility 0.35s ease, background-color 0.3s ease;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   box-sizing: border-box;
+}
+
+.portal-gate-container::-webkit-scrollbar {
+  width: 6px;
+}
+.portal-gate-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.portal-gate-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.portal-gate-container::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .portal-gate-container.hidden {
@@ -6857,30 +6936,30 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 }
 
 .ambient-orb-emerald {
-  width: 500px;
-  height: 500px;
-  top: -100px;
+  width: 540px;
+  height: 540px;
+  top: -120px;
   left: -100px;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.16) 0%, rgba(52, 211, 153, 0.05) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.18) 0%, rgba(52, 211, 153, 0.06) 60%, transparent 80%);
   animation: orbFloatEmerald 22s ease-in-out infinite alternate;
 }
 
 .ambient-orb-blue {
-  width: 520px;
-  height: 520px;
-  bottom: -120px;
+  width: 560px;
+  height: 560px;
+  bottom: -140px;
   right: -120px;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(147, 197, 253, 0.04) 60%, transparent 80%);
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.14) 0%, rgba(147, 197, 253, 0.05) 60%, transparent 80%);
   animation: orbFloatBlue 26s ease-in-out infinite alternate;
 }
 
 .ambient-orb-rose {
-  width: 380px;
-  height: 380px;
-  top: 40%;
+  width: 420px;
+  height: 420px;
+  top: 42%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(244, 63, 94, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.09) 0%, transparent 70%);
   animation: orbFloatRose 20s ease-in-out infinite alternate;
 }
 
@@ -6905,14 +6984,14 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 .portal-tech-grid {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(rgba(15, 23, 42, 0.06) 1.2px, transparent 1.2px);
   background-size: 28px 28px;
-  mask-image: radial-gradient(circle at center, black 45%, transparent 85%);
-  -webkit-mask-image: radial-gradient(circle at center, black 45%, transparent 85%);
-  opacity: 0.7;
+  mask-image: radial-gradient(circle at center, black 50%, transparent 88%);
+  -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 88%);
+  opacity: 0.75;
 }
 
-/* Official Header Navbar Island (Clean White Medical Navbar) */
+/* Official Header Navbar Island (Clean Medical Glassmorphic Island) */
 .portal-gate-header {
   position: relative;
   z-index: 10;
@@ -6923,10 +7002,12 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   width: 100%;
   margin: 0 auto;
   padding: 10px 22px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 9999px;
-  box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
   transition: all 0.25s ease;
 }
 
@@ -6943,6 +7024,11 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.25s ease;
+}
+
+.portal-brand-logo-wrap:hover {
+  transform: scale(1.05);
 }
 
 .portal-brand-logo-wrap img {
@@ -7012,6 +7098,7 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   font-weight: 700;
   padding: 5px 13px;
   border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(5, 150, 105, 0.08);
 }
 
 .portal-status-badge {
@@ -7042,6 +7129,40 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
 
+.portal-header-apk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.portal-header-apk-btn i {
+  color: #10b981;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.portal-header-apk-btn:hover {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.15);
+}
+
+.portal-header-apk-btn:hover i {
+  transform: scale(1.15);
+}
+
 .portal-theme-toggle-btn {
   border-radius: 9999px;
   padding: 6px 14px;
@@ -7061,6 +7182,7 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   background: #f1f5f9;
   border-color: #cbd5e1;
   color: #0f172a;
+  transform: translateY(-1px);
 }
 
 /* Main Content Area */
@@ -7069,7 +7191,7 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   z-index: 10;
   max-width: 1220px;
   width: 100%;
-  margin: 12px auto;
+  margin: 10px auto;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -7094,74 +7216,103 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   font-weight: 700;
   padding: 4px 16px;
   border-radius: 9999px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   letter-spacing: 0.2px;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.06);
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.08);
 }
 
-.portal-hero-tag i {
+.hero-tag-sparkle {
   color: #059669;
+  display: inline-flex;
+  align-items: center;
+  animation: sparkleTwinkle 2.5s ease-in-out infinite;
+}
+
+@keyframes sparkleTwinkle {
+  0%, 100% { opacity: 0.7; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.15) rotate(5deg); }
 }
 
 .portal-banner-container {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin: 0 auto 6px auto;
-  max-width: 360px;
+  margin: 0 auto 4px auto;
+  max-width: 380px;
   width: 100%;
 }
 
+.portal-banner-glow {
+  position: absolute;
+  width: 260px;
+  height: 90px;
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.28) 0%, rgba(59, 130, 246, 0.15) 50%, transparent 80%);
+  filter: blur(28px);
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
 .portal-hero-banner {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 310px;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.08));
+  filter: drop-shadow(0 10px 22px rgba(15, 23, 42, 0.1));
   animation: floatBanner 4s ease-in-out infinite alternate;
   transition: transform 0.3s ease;
 }
 
 .portal-hero-banner:hover {
-  transform: scale(1.02);
+  transform: scale(1.03);
 }
 
 @keyframes floatBanner {
   0% { transform: translateY(0px); }
-  100% { transform: translateY(-4px); }
+  100% { transform: translateY(-5px); }
 }
 
 .portal-headline-title {
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 900;
-  letter-spacing: -0.6px;
+  letter-spacing: -0.7px;
   margin: 0 0 4px 0;
-  color: #0f172a;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 55%, #059669 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   line-height: 1.15;
 }
 
 .portal-headline-badge-wrap {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .portal-headline-instansi {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14.5px;
+  gap: 7px;
+  font-size: 14px;
   font-weight: 800;
   color: #059669;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  padding: 3px 16px;
+  padding: 3px 18px;
   border-radius: 9999px;
   letter-spacing: 0.2px;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.08);
+}
+
+.portal-headline-instansi i {
+  font-size: 15px;
 }
 
 .portal-headline-subtitle {
   font-size: 13.5px;
   color: #475569;
-  max-width: 640px;
+  max-width: 660px;
   margin: 0 auto;
   line-height: 1.55;
   font-weight: 400;
@@ -7179,13 +7330,13 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   position: relative;
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
-  border-radius: 20px;
+  border-radius: 22px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.05), 0 4px 8px -4px rgba(15, 23, 42, 0.02);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 25px -4px rgba(15, 23, 42, 0.05), 0 4px 8px -4px rgba(15, 23, 42, 0.02);
 }
 
 .card-accent-bar {
@@ -7196,37 +7347,59 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   z-index: 2;
 }
 
-.card-puskesmas .card-accent-bar { background: #059669; }
-.card-sekolah .card-accent-bar { background: #2563eb; }
-.card-posyandu .card-accent-bar { background: #e11d48; }
+.card-puskesmas .card-accent-bar { background: linear-gradient(90deg, #059669 0%, #10b981 100%); }
+.card-sekolah .card-accent-bar { background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%); }
+.card-posyandu .card-accent-bar { background: linear-gradient(90deg, #e11d48 0%, #f43f5e 100%); }
+
+.card-glow-layer {
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(35px);
+  transition: opacity 0.4s ease;
+}
+
+.card-puskesmas .card-glow-layer { background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%); }
+.card-sekolah .card-glow-layer { background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, transparent 70%); }
+.card-posyandu .card-glow-layer { background: radial-gradient(circle, rgba(225, 29, 72, 0.2) 0%, transparent 70%); }
 
 .portal-card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-8px);
 }
 
 .portal-card:hover .card-accent-bar {
   height: 6px;
 }
 
+.portal-card:hover .card-glow-layer {
+  opacity: 1;
+}
+
 .card-puskesmas:hover {
   border-color: #10b981;
-  box-shadow: 0 20px 30px -10px rgba(5, 150, 105, 0.16), 0 0 0 1px #10b981;
+  box-shadow: 0 24px 38px -10px rgba(5, 150, 105, 0.18), 0 0 0 1px #10b981;
 }
 
 .card-sekolah:hover {
   border-color: #3b82f6;
-  box-shadow: 0 20px 30px -10px rgba(37, 99, 235, 0.16), 0 0 0 1px #3b82f6;
+  box-shadow: 0 24px 38px -10px rgba(37, 99, 235, 0.18), 0 0 0 1px #3b82f6;
 }
 
 .card-posyandu:hover {
   border-color: #f43f5e;
-  box-shadow: 0 20px 30px -10px rgba(225, 29, 72, 0.16), 0 0 0 1px #f43f5e;
+  box-shadow: 0 24px 38px -10px rgba(225, 29, 72, 0.18), 0 0 0 1px #f43f5e;
 }
 
 .portal-card-inner {
   position: relative;
   z-index: 1;
-  padding: 24px 22px 18px 22px;
+  padding: 24px 22px 20px 22px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -7242,36 +7415,39 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 }
 
 .portal-card-icon-wrap {
-  width: 52px;
-  height: 52px;
-  border-radius: 15px;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  transition: transform 0.3s ease;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
 }
 
 .portal-card:hover .portal-card-icon-wrap {
-  transform: scale(1.08) rotate(2deg);
+  transform: scale(1.1) rotate(3deg);
 }
 
 .card-puskesmas .portal-card-icon-wrap {
-  background: #ecfdf5;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
   color: #059669;
-  border: 1px solid #a7f3d0;
+  border: 1.5px solid #a7f3d0;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.12);
 }
 
 .card-sekolah .portal-card-icon-wrap {
-  background: #eff6ff;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   color: #2563eb;
-  border: 1px solid #bfdbfe;
+  border: 1.5px solid #bfdbfe;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
 }
 
 .card-posyandu .portal-card-icon-wrap {
-  background: #fff1f2;
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
   color: #e11d48;
-  border: 1px solid #fecdd3;
+  border: 1.5px solid #fecdd3;
+  box-shadow: 0 4px 10px rgba(225, 29, 72, 0.12);
 }
 
 .portal-card-pill {
@@ -7281,8 +7457,33 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   border-radius: 9999px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   letter-spacing: 0.2px;
+}
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-emerald {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: pulseDot 2s infinite;
+}
+
+.dot-blue {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+  animation: pulseDot 2s infinite;
+}
+
+.dot-rose {
+  background: #f43f5e;
+  box-shadow: 0 0 6px rgba(244, 63, 94, 0.6);
+  animation: pulseDot 2s infinite;
 }
 
 .pill-puskesmas {
@@ -7325,9 +7526,9 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   margin: 0 0 16px 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   border-top: 1px solid #f1f5f9;
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .portal-card-features li {
@@ -7335,13 +7536,24 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   color: #334155;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   font-weight: 500;
 }
 
-.card-puskesmas .portal-card-features li i { color: #059669; font-size: 13px; }
-.card-sekolah .portal-card-features li i { color: #2563eb; font-size: 13px; }
-.card-posyandu .portal-card-features li i { color: #e11d48; font-size: 13px; }
+.feat-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.card-puskesmas .feat-icon { background: #ecfdf5; color: #059669; }
+.card-sekolah .feat-icon { background: #eff6ff; color: #2563eb; }
+.card-posyandu .feat-icon { background: #fff1f2; color: #e11d48; }
 
 .portal-card-bottom {
   margin-top: auto;
@@ -7374,26 +7586,26 @@ body.dark-mode #modalPengembalianAlat .filter-control {
 }
 
 .btn-puskesmas {
-  background: #059669;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
 }
 .btn-puskesmas:hover {
-  background: #047857;
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
   box-shadow: 0 6px 18px rgba(5, 150, 105, 0.3);
 }
 
 .btn-sekolah {
-  background: #2563eb;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 .btn-sekolah:hover {
-  background: #1d4ed8;
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
   box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
 }
 
 .btn-posyandu {
-  background: #e11d48;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
 }
 .btn-posyandu:hover {
-  background: #be123c;
+  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
   box-shadow: 0 6px 18px rgba(225, 29, 72, 0.3);
 }
 
@@ -7414,32 +7626,61 @@ body.dark-mode #modalPengembalianAlat .filter-control {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 18px;
-  padding: 10px 20px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  padding: 10px 22px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
   margin-top: 2px;
 }
 
 .trust-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   text-align: left;
+  transition: transform 0.2s ease;
+}
+
+.trust-item:hover {
+  transform: translateY(-1px);
 }
 
 .trust-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  color: #0284c7;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.trust-icon-emerald {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+}
+
+.trust-icon-blue {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+}
+
+.trust-icon-rose {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+}
+
+.trust-icon-cyan {
+  background: #ecfeff;
+  border: 1px solid #a5f3fc;
+  color: #0891b2;
 }
 
 .trust-info {
@@ -7525,25 +7766,108 @@ body.dark-mode #modalPengembalianAlat .filter-control {
    DARK MODE OVERRIDES (Optional, when user toggles dark mode)
    ========================================================================== */
 body.dark-mode .portal-gate-container {
-  background-color: #0f172a;
+  background-color: #0b0f19;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.15) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(244, 63, 94, 0.08) 0px, transparent 60%);
+    radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.18) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(244, 63, 94, 0.1) 0px, transparent 60%);
   color: #f8fafc;
 }
 
+body.dark-mode .portal-gate-container::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+body.dark-mode .portal-gate-container::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+body.dark-mode .portal-tech-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1.2px, transparent 1.2px);
+  opacity: 0.6;
+}
+
 body.dark-mode .portal-gate-header {
-  background: rgba(30, 41, 59, 0.85);
+  background: rgba(15, 23, 42, 0.88);
   border-color: #334155;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .portal-brand-logo-wrap img {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 body.dark-mode .portal-gate-brand-title h3 {
   color: #ffffff;
 }
 
-body.dark-mode .portal-headline-title {
+body.dark-mode .portal-gate-brand-title p {
+  color: #34d399;
+}
+
+body.dark-mode .portal-kemenkes-badge {
+  background: rgba(5, 150, 105, 0.16);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+  box-shadow: none;
+}
+
+body.dark-mode .portal-status-badge {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
+body.dark-mode .portal-header-apk-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+body.dark-mode .portal-header-apk-btn:hover {
+  background: #0f172a;
+  border-color: #10b981;
+  color: #34d399;
+}
+
+body.dark-mode .portal-theme-toggle-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f8fafc;
+}
+body.dark-mode .portal-theme-toggle-btn:hover {
+  background: #0f172a;
+  border-color: #475569;
   color: #ffffff;
+}
+
+body.dark-mode .portal-hero-tag {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.28);
+  color: #6ee7b7;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .hero-tag-sparkle {
+  color: #34d399;
+}
+
+body.dark-mode .portal-banner-glow {
+  background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.35) 0%, rgba(59, 130, 246, 0.2) 50%, transparent 80%);
+  filter: blur(34px);
+}
+
+body.dark-mode .portal-headline-title {
+  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 55%, #34d399 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.dark-mode .portal-headline-instansi {
+  color: #34d399;
+  background: rgba(5, 150, 105, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.12);
 }
 
 body.dark-mode .portal-headline-subtitle {
@@ -7551,9 +7875,9 @@ body.dark-mode .portal-headline-subtitle {
 }
 
 body.dark-mode .portal-card {
-  background: #1e293b;
+  background: rgba(30, 41, 59, 0.85);
   border-color: #334155;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
 }
 
 body.dark-mode .portal-card-title {
@@ -7564,6 +7888,45 @@ body.dark-mode .portal-card-desc {
   color: #94a3b8;
 }
 
+body.dark-mode .card-puskesmas .portal-card-icon-wrap {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1.5px solid rgba(52, 211, 153, 0.35);
+  color: #34d399;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+body.dark-mode .card-sekolah .portal-card-icon-wrap {
+  background: rgba(59, 130, 246, 0.16);
+  border: 1.5px solid rgba(96, 165, 250, 0.35);
+  color: #60a5fa;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.2);
+}
+
+body.dark-mode .card-posyandu .portal-card-icon-wrap {
+  background: rgba(244, 63, 94, 0.16);
+  border: 1.5px solid rgba(251, 113, 133, 0.35);
+  color: #fb7185;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.2);
+}
+
+body.dark-mode .pill-puskesmas {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(52, 211, 153, 0.3);
+  color: #6ee7b7;
+}
+
+body.dark-mode .pill-sekolah {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #93c5fd;
+}
+
+body.dark-mode .pill-posyandu {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(251, 113, 133, 0.3);
+  color: #fca5a5;
+}
+
 body.dark-mode .portal-card-features {
   border-top-color: #334155;
 }
@@ -7572,19 +7935,62 @@ body.dark-mode .portal-card-features li {
   color: #cbd5e1;
 }
 
+body.dark-mode .card-puskesmas .feat-icon {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+body.dark-mode .card-sekolah .feat-icon {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+}
+
+body.dark-mode .card-posyandu .feat-icon {
+  background: rgba(244, 63, 94, 0.18);
+  color: #fb7185;
+}
+
+body.dark-mode .portal-card-hint {
+  color: #94a3b8;
+}
+
+body.dark-mode .card-puskesmas:hover {
+  border-color: #10b981;
+  box-shadow: 0 24px 38px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.25);
+}
+
+body.dark-mode .card-sekolah:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 24px 38px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(59, 130, 246, 0.25);
+}
+
+body.dark-mode .card-posyandu:hover {
+  border-color: #f43f5e;
+  box-shadow: 0 24px 38px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(225, 29, 72, 0.25);
+}
+
 body.dark-mode .portal-trust-strip {
-  background: #1e293b;
+  background: rgba(30, 41, 59, 0.85);
   border-color: #334155;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 body.dark-mode .trust-number {
   color: #ffffff;
 }
 
+body.dark-mode .trust-sub {
+  color: #94a3b8;
+}
+
 body.dark-mode .trust-icon {
-  background: #0f172a;
   border-color: #334155;
 }
+
+body.dark-mode .trust-icon-emerald { background: rgba(16, 185, 129, 0.16); border-color: rgba(52, 211, 153, 0.3); color: #34d399; }
+body.dark-mode .trust-icon-blue { background: rgba(59, 130, 246, 0.16); border-color: rgba(96, 165, 250, 0.3); color: #60a5fa; }
+body.dark-mode .trust-icon-rose { background: rgba(244, 63, 94, 0.16); border-color: rgba(251, 113, 133, 0.3); color: #fb7185; }
+body.dark-mode .trust-icon-cyan { background: rgba(8, 145, 178, 0.16); border-color: rgba(34, 211, 238, 0.3); color: #22d3ee; }
 
 body.dark-mode .trust-divider {
   background: #334155;
@@ -7594,10 +8000,26 @@ body.dark-mode .portal-gate-footer {
   border-top-color: #334155;
 }
 
+body.dark-mode .portal-footer-left {
+  color: #94a3b8;
+}
+
 body.dark-mode .footer-badge {
   background: #1e293b;
   border-color: #334155;
-  color: #94a3b8;
+  color: #cbd5e1;
+}
+
+body.dark-mode .footer-badge.badge-author {
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+body.dark-mode .footer-badge.badge-version {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.3);
 }
 
 /* Responsive Media Queries */
@@ -7619,16 +8041,18 @@ body.dark-mode .footer-badge {
   }
   .portal-cards-grid {
     grid-template-columns: 1fr;
-    max-width: 460px;
+    max-width: 480px;
     margin: 0 auto;
+    width: 100%;
   }
   .portal-headline-title {
     font-size: 26px;
   }
   .portal-trust-strip {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 14px 18px;
   }
   .trust-divider {
     display: none;
@@ -9807,6 +10231,40 @@ body.dark-mode .sekolah-page-btn:disabled,
     font-size: 12px;
   }
 }
+
+/* ==========================================================================
+   AUTO UPPERCASE FOR CKG & SEKOLAH FORMS & INPUTS
+   Memastikan saat ketik teks apapun langsung tampil huruf besar (kapital)
+   ========================================================================== */
+#view-ckg-gratis input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#view-ckg-gratis textarea,
+#view-sekolah input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#view-sekolah textarea,
+#view-data-records input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#view-data-records textarea,
+#inputModalOverlay input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#inputModalOverlay textarea,
+#modalPemeriksaanSiswa input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalPemeriksaanSiswa textarea,
+#modalFormPosSiswa input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalFormPosSiswa textarea,
+#modalTambahSiswa input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalTambahSiswa textarea,
+#modalKelolaSekolah input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalKelolaSekolah textarea,
+#modalImportSekolah input[type="text"],
+#modalDuplicateFinder input[type="text"],
+#nama, #alamat, #pekerjaan, #nama_wali, #pos_lokasi,
+#periksaNama, #periksaAlamat, #periksaCatatanRujukan,
+#tambahSiswaNama, #tambahSiswaAlamat,
+#searchCkgGratis, #searchSekolahRecords, #searchDataRecords,
+.combobox-search-input,
+.swal2-input:not([type="password"]):not([type="email"]):not([type="tel"]),
+.swal2-textarea,
+.auto-uppercase {
+  text-transform: uppercase !important;
+}
+
 
 
 

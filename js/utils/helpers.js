@@ -378,3 +378,86 @@ window.hideLoadingOverlay = hideLoadingOverlay;
 window.initDarkMode = initDarkMode;
 window.toggleDarkMode = toggleDarkMode;
 window.updateThemeToggleUI = updateThemeToggleUI;
+
+// ==========================================================================
+// REALTIME AUTO UPPERCASE HANDLER (CKG & SEKOLAH)
+// Menjamin setiap ketikan di Menu Cek Kesehatan Gratis dan Sekolah otomatis menjadi HURUF BESAR SEMUA
+// ==========================================================================
+(function initGlobalAutoUppercase() {
+  const EXCLUDED_TYPES = new Set([
+    'password', 'email', 'file', 'checkbox', 'radio',
+    'date', 'time', 'datetime-local', 'month', 'week',
+    'color', 'range', 'number', 'tel'
+  ]);
+
+  const TARGET_IDS = new Set([
+    'nama', 'alamat', 'pekerjaan', 'nama_wali', 'pos_lokasi',
+    'periksaNama', 'periksaAlamat', 'periksaCatatanRujukan',
+    'tambahSiswaNama', 'tambahSiswaAlamat',
+    'searchCkgGratis', 'searchSekolahRecords', 'searchDataRecords',
+    'inputSearchProvinsiDropdown', 'inputSearchKabKotaDropdown',
+    'inputSearchKecamatanDropdown', 'inputSearchKelurahanDropdown',
+    'swal-input1'
+  ]);
+
+  const TARGET_CONTAINERS_SELECTOR = [
+    '#view-ckg-gratis', '#view-sekolah', '#view-data-records',
+    '#inputModalOverlay', '#modalPemeriksaanSiswa', '#modalFormPosSiswa',
+    '#modalTambahSiswa', '#modalKelolaSekolah', '#modalImportSekolah',
+    '#modalDuplicateFinder', '#modalNaikKelas', '#modalMigrasiSekolah',
+    '#modalLaporanSekolah', '.searchable-combobox-wrapper',
+    '.combobox-dropdown-panel', '.swal2-popup', '.auto-uppercase'
+  ].join(', ');
+
+  function applyUppercase(el) {
+    if (!el || !el.tagName) return;
+    const tag = el.tagName.toUpperCase();
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+
+    const type = (el.type || 'text').toLowerCase();
+    if (EXCLUDED_TYPES.has(type)) return;
+
+    // Cek apakah elemen ada di dalam kontainer CKG/Sekolah atau cocok dengan ID target
+    const isInsideTarget = TARGET_IDS.has(el.id) || el.classList.contains('auto-uppercase') || (el.closest && el.closest(TARGET_CONTAINERS_SELECTOR));
+    if (!isInsideTarget) {
+      // Periksa juga apakah view aktif saat ini adalah ckg-gratis atau sekolah
+      const activeView = document.querySelector('.view-panel.active');
+      const activeViewId = activeView ? activeView.id : '';
+      if (activeViewId !== 'view-ckg-gratis' && activeViewId !== 'view-sekolah' && activeViewId !== 'view-data-records') {
+        return;
+      }
+    }
+
+    const origVal = el.value;
+    if (typeof origVal !== 'string' || !origVal) return;
+
+    const upperVal = origVal.toUpperCase();
+    if (origVal !== upperVal) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      el.value = upperVal;
+      if (typeof start === 'number' && typeof end === 'number') {
+        try {
+          el.setSelectionRange(start, end);
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Tangkap event input secara capturing agar dieksekusi sebelum handler lain
+  document.addEventListener('input', function(e) {
+    applyUppercase(e.target);
+  }, true);
+
+  // Tangkap juga change dan keyup untuk mengantisipasi autofill dan navigasi keyboard
+  document.addEventListener('change', function(e) {
+    applyUppercase(e.target);
+  }, true);
+
+  document.addEventListener('keyup', function(e) {
+    applyUppercase(e.target);
+  }, true);
+
+  window.applyUppercaseToElement = applyUppercase;
+})();
+

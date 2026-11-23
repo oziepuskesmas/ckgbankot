@@ -10232,6 +10232,40 @@ body.dark-mode .sekolah-page-btn:disabled,
   }
 }
 
+/* ==========================================================================
+   AUTO UPPERCASE FOR CKG & SEKOLAH FORMS & INPUTS
+   Memastikan saat ketik teks apapun langsung tampil huruf besar (kapital)
+   ========================================================================== */
+#view-ckg-gratis input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#view-ckg-gratis textarea,
+#view-sekolah input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#view-sekolah textarea,
+#view-data-records input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#view-data-records textarea,
+#inputModalOverlay input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#inputModalOverlay textarea,
+#modalPemeriksaanSiswa input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalPemeriksaanSiswa textarea,
+#modalFormPosSiswa input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalFormPosSiswa textarea,
+#modalTambahSiswa input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalTambahSiswa textarea,
+#modalKelolaSekolah input[type="text"]:not([type="password"]):not([type="email"]):not([type="tel"]),
+#modalKelolaSekolah textarea,
+#modalImportSekolah input[type="text"],
+#modalDuplicateFinder input[type="text"],
+#nama, #alamat, #pekerjaan, #nama_wali, #pos_lokasi,
+#periksaNama, #periksaAlamat, #periksaCatatanRujukan,
+#tambahSiswaNama, #tambahSiswaAlamat,
+#searchCkgGratis, #searchSekolahRecords, #searchDataRecords,
+.combobox-search-input,
+.swal2-input:not([type="password"]):not([type="email"]):not([type="tel"]),
+.swal2-textarea,
+.auto-uppercase {
+  text-transform: uppercase !important;
+}
+
+
 
 
 

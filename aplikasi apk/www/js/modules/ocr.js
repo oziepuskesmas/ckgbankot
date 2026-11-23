@@ -367,7 +367,7 @@ function applyOcrDataToForm(ocrResponse, target, finalNik) {
         if (alm) {
           let fullAlm = ext.alamat;
           if (ext.rt || ext.rw) fullAlm += ` RT ${ext.rt || '00'} RW ${ext.rw || '00'}`;
-          alm.value = fullAlm;
+          alm.value = fullAlm.toUpperCase();
         }
       }
       if (ext.status_perkawinan) {
@@ -379,7 +379,7 @@ function applyOcrDataToForm(ocrResponse, target, finalNik) {
       }
       if (ext.pekerjaan) {
         const pkInp = document.getElementById('pekerjaan');
-        if (pkInp) pkInp.value = ext.pekerjaan;
+        if (pkInp) pkInp.value = String(ext.pekerjaan || '').toUpperCase();
       }
 
       Swal.fire({
@@ -460,7 +460,7 @@ function applyOcrDataToForm(ocrResponse, target, finalNik) {
         }
         if (ext.alamat) {
           const pa = document.getElementById('periksaAlamat');
-          if (pa) pa.value = ext.alamat;
+          if (pa) pa.value = String(ext.alamat || '').toUpperCase();
         }
       });
     }
@@ -495,7 +495,7 @@ function applyOcrDataToForm(ocrResponse, target, finalNik) {
         }
         if (ext.alamat) {
           const ta = document.getElementById('tambahSiswaAlamat');
-          if (ta) ta.value = ext.alamat;
+          if (ta) ta.value = String(ext.alamat || '').toUpperCase();
         }
       });
     }

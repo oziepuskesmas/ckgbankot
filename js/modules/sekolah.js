@@ -1187,7 +1187,7 @@ async function cekNikSiswaBankData() {
     if (rawNama) document.getElementById('periksaNama').value = rawNama.toUpperCase();
     document.getElementById('periksaJk').value = rawJk;
     if (rawDob) document.getElementById('periksaTglLahir').value = rawDob;
-    if (rawAlamat) document.getElementById('periksaAlamat').value = rawAlamat;
+    if (rawAlamat) document.getElementById('periksaAlamat').value = rawAlamat.toUpperCase();
     calculateSiswaAge();
 
     initWilayahDropdownsSekolah(rawProv, rawKab, rawKec, rawKel);
@@ -1199,7 +1199,7 @@ async function cekNikSiswaBankData() {
       siswa.nama = rawNama ? rawNama.toUpperCase() : siswa.nama;
       siswa.jk = rawJk;
       if (rawDob) siswa.tanggal_lahir = rawDob;
-      if (rawAlamat) siswa.alamat = rawAlamat;
+      if (rawAlamat) siswa.alamat = rawAlamat.toUpperCase();
       siswa.provinsi = rawProv;
       siswa.kab_kota = rawKab;
       siswa.kecamatan = rawKec;
@@ -1949,9 +1949,9 @@ function renderSekolahView() {
     const { hasAntro, hasVital, hasLab, isLabTidakDiperiksa, hasOrgan, isComplete, isPartial, isBelum, completedCount } = stations;
 
     const safeId = escapeHtml(r.id || '');
-    const safeNama = escapeHtml(r.nama || '-');
-    const safeSekolah = escapeHtml(r.sekolah || '-');
-    const safeKelas = escapeHtml(r.kelas || '-');
+    const safeNama = escapeHtml(String(r.nama || '-').toUpperCase());
+    const safeSekolah = escapeHtml(String(r.sekolah || '-').toUpperCase());
+    const safeKelas = escapeHtml(String(r.kelas || '-').toUpperCase());
     const safeNik = escapeHtml(r.nik || '');
     const safeJk = r.jk === 'P' ? 'Perempuan' : 'Laki-laki';
     const jkColor = r.jk === 'P' ? '#ec4899' : '#4f46e5';
@@ -3875,7 +3875,7 @@ async function saveSekolahCategory(categoryKey, triggerBtn) {
       titleMsg = 'Data Organ Indera Berhasil Disimpan!';
     } else if (categoryKey === 'kesimpulan') {
       fieldsToUpdate.status_kesehatan = document.getElementById('periksaStatusKesehatan')?.value || 'Sehat';
-      fieldsToUpdate.catatan_rujukan = document.getElementById('periksaCatatanRujukan')?.value.trim() || '-';
+      fieldsToUpdate.catatan_rujukan = (document.getElementById('periksaCatatanRujukan')?.value.trim() || '-').toUpperCase();
       fieldsToUpdate.kesimpulan_done = 1;
       categoryName = 'Kesimpulan & Rujukan';
       titleMsg = 'Data Kesimpulan Berhasil Disimpan!';
@@ -4529,7 +4529,7 @@ async function cekNikTambahSiswaBankData() {
     if (rawNama) document.getElementById('tambahSiswaNama').value = rawNama.toUpperCase();
     document.getElementById('tambahSiswaJk').value = rawJk;
     if (rawDob) document.getElementById('tambahSiswaTglLahir').value = rawDob;
-    if (rawAlamat) document.getElementById('tambahSiswaAlamat').value = rawAlamat;
+    if (rawAlamat) document.getElementById('tambahSiswaAlamat').value = rawAlamat.toUpperCase();
     calculateTambahSiswaAge();
 
     initWilayahDropdownsCascade('tambahSiswaProvinsi', 'tambahSiswaKabKota', 'tambahSiswaKecamatan', 'tambahSiswaKelurahan', rawProv, rawKab, rawKec, rawKel);
