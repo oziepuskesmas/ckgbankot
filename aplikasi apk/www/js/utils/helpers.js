@@ -62,6 +62,17 @@ function fallbackCopyToClipboard(text, label) {
   document.body.removeChild(ta);
 }
 
+// Utility: Cek apakah NIK valid dan terisi untuk pengecekan duplikat.
+function isNikValidForDuplicate(nik) {
+  if (nik === null || nik === undefined) return false;
+  const s = String(nik).trim();
+  if (s === '' || s === '-' || s === '0' || s.toLowerCase() === 'null' || s.toLowerCase() === 'undefined' || s.length < 6) {
+    return false;
+  }
+  return true;
+}
+window.isNikValidForDuplicate = isNikValidForDuplicate;
+
 // Title Case Formatter
 function toTitleCase(str) {
   if (!str) return '';

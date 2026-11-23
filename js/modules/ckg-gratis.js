@@ -5122,12 +5122,49 @@ function processExportBotEncoXLSX(kategoriVal, bulanVal, tahunVal, petugasVal, s
 }
 
 let selectedImportFile = null;
+let pendingCkgImportMode = 'update_and_new';
+let pendingCkgImportData = [];
+
+function setCkgImportMode(mode) {
+  pendingCkgImportMode = mode;
+  const modes = ['update_and_new', 'update_only', 'new_only', 'insert_all'];
+  modes.forEach(m => {
+    const btn = document.getElementById(`btnCkgImport_${m}`);
+    if (btn) {
+      if (m === mode) {
+        btn.style.boxShadow = '0 0 0 3px rgba(5, 150, 105, 0.45)';
+        btn.style.borderColor = '#059669';
+        btn.style.background = '#ecfdf5';
+        btn.style.transform = 'scale(1.01)';
+      } else {
+        btn.style.boxShadow = 'none';
+        btn.style.borderColor = '#cbd5e1';
+        btn.style.background = '#ffffff';
+        btn.style.transform = 'scale(1)';
+      }
+    }
+  });
+}
 
 function openImportModal(target = 'records') {
   currentImportTarget = target || 'records';
   const modal = document.getElementById('importModal');
   if (modal) modal.classList.add('open', 'active');
   selectedImportFile = null;
+  pendingCkgImportData = [];
+  pendingCkgImportMode = 'update_and_new';
+
+  const previewArea = document.getElementById('importCkgPreviewArea');
+  if (previewArea) {
+    previewArea.style.display = 'none';
+    previewArea.innerHTML = '';
+  }
+
+  const dropzoneText = document.getElementById('importDropzoneText');
+  if (dropzoneText) {
+    dropzoneText.innerHTML = `Tarik & Lepaskan file Excel di sini atau <span style="color: #059669; text-decoration: underline;">Pilih File</span>`;
+  }
+
   const fileDetails = document.getElementById('importFileDetails');
   const btnExec = document.getElementById('btnExecuteImport');
   if (fileDetails) fileDetails.style.display = 'none';
@@ -5205,6 +5242,12 @@ function openImportModal(target = 'records') {
 function closeImportModal() {
   const modal = document.getElementById('importModal');
   if (modal) modal.classList.remove('open', 'active');
+  pendingCkgImportData = [];
+  const previewArea = document.getElementById('importCkgPreviewArea');
+  if (previewArea) {
+    previewArea.style.display = 'none';
+    previewArea.innerHTML = '';
+  }
 }
 
 function openAccountSettingsModal() {
@@ -5303,47 +5346,296 @@ function handleImportFileSelect(event) {
   const fileDetails = document.getElementById('importFileDetails');
   const fileNameEl = document.getElementById('importFileName');
   const btnExec = document.getElementById('btnExecuteImport');
+  const previewArea = document.getElementById('importCkgPreviewArea');
 
-  // Read file to count valid 16-digit NIK rows
-  const countReader = new FileReader();
-  countReader.onload = function (ev) {
+  if (fileDetails) fileDetails.style.display = 'flex';
+
+  const reader = new FileReader();
+  reader.onload = function (ev) {
     try {
       const d = new Uint8Array(ev.target.result);
       const wb = XLSX.read(d, { type: 'array' });
+      if (!wb || !wb.SheetNames || wb.SheetNames.length === 0) {
+        if (fileNameEl) fileNameEl.textContent = `${file.name} (File kosong / tanpa sheet)`;
+        return;
+      }
+
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      let valid16Count = 0;
-      let invalidNikCount = 0;
-      rows.forEach(r => {
-        const keys = Object.keys(r);
-        const hasNama = keys.some(k => /nama/i.test(k) && String(r[k]).trim());
-        let rawNik = '';
-        for (let k of keys) {
-          if (/nik|ktp/i.test(k) && String(r[k]).trim()) { rawNik = String(r[k]).trim(); break; }
-        }
-        if (!hasNama && !rawNik) return;
+      const jsonRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (jsonRows.length === 0) {
+        if (fileNameEl) fileNameEl.textContent = `${file.name} (Tidak ada baris data)`;
+        return;
+      }
+
+      const targetSelect = document.getElementById('importTargetPetugas');
+      const targetPetugas = (targetSelect && targetSelect.value) ? targetSelect.value : (sessionStorage.getItem('ckg_user_name') || 'Admin');
+      const tanggalInput = document.getElementById('importTanggalEntry');
+      const selectedTanggal = (tanggalInput && tanggalInput.value) ? tanggalInput.value : new Date().toISOString().substring(0, 10);
+
+      const parsedItems = [];
+      let skippedInvalidNik = 0;
+      const sampleInvalidNik = [];
+
+      jsonRows.forEach((row, i) => {
+        const getVal = (...keys) => {
+          for (let k of keys) {
+            const target = k.toLowerCase().trim();
+            for (let rowKey in row) {
+              if (rowKey.toLowerCase().trim() === target) return String(row[rowKey]).trim();
+            }
+          }
+          for (let k of keys) {
+            const target = k.toLowerCase().trim();
+            for (let rowKey in row) {
+              const keyClean = rowKey.toLowerCase().trim();
+              if (keyClean.includes(target) && !keyClean.includes('petugas') && !keyClean.includes('faskes')) return String(row[rowKey]).trim();
+            }
+          }
+          return '';
+        };
+
+        const rawNik = getVal('NIK (WAJIB KUNCI 16 DIGIT)', 'NIK', 'No KTP', 'Nomor NIK');
+        const nama = getVal('NAMA LENGKAP PASIEN', 'Nama Pasien', 'Nama Lengkap', 'Nama Pasien & NIK', 'Nama');
+        if (!nama && !rawNik) return;
+
         const cleanNik = extractCleanNik16(rawNik);
-        if (cleanNik.length === 16) {
-          valid16Count++;
-        } else {
-          invalidNikCount++;
+        if (cleanNik.length !== 16) {
+          skippedInvalidNik++;
+          if (sampleInvalidNik.length < 5) {
+            sampleInvalidNik.push({ nama: nama || 'Tanpa Nama', nik: rawNik || '(kosong)', len: cleanNik.length });
+          }
+          return;
         }
+
+        const dobStr = formatDateToYYYYMMDD(getVal('TANGGAL LAHIR (YYYY-MM-DD)', 'Tanggal Lahir', 'Tgl Lahir', 'DOB')) || '1990-01-01';
+        let age = parseInt(getVal('Usia', 'Umur'), 10) || 0;
+        if (isNaN(age) || age <= 0) {
+          try {
+            const bd = new Date(dobStr);
+            if (!isNaN(bd.getTime())) age = new Date().getFullYear() - bd.getFullYear();
+          } catch (_) { }
+        }
+        if (age <= 0) age = 30;
+
+        const jkRaw = getVal('JENIS KELAMIN (L/P)', 'Jenis Kelamin', 'JK') || 'L';
+        const jk = jkRaw.toUpperCase().startsWith('P') ? 'P' : 'L';
+        const wa = getVal('NO WHATSAPP', 'No WhatsApp', 'WA', 'HP') || '';
+        const statusNikah = getVal('STATUS PERNIKAHAN', 'Status Pernikahan', 'Status Nikah') || 'Kawin';
+        const pekerjaan = getVal('PEKERJAAN', 'Pekerjaan') || '';
+        const provinsi = getVal('PROVINSI', 'Provinsi') || 'Jawa Barat';
+        const kabKota = getVal('KABUPATEN / KOTA', 'Kab/Kota', 'Kota') || 'Kab. Bandung';
+        const kecamatan = getVal('KECAMATAN', 'Kecamatan') || 'Banjaran';
+        const kelurahan = getVal('DESA / KELURAHAN', 'Kelurahan', 'Desa') || 'Banjaran Kota';
+        const alamat = getVal('ALAMAT TEMPAT TINGGAL', 'Alamat Lengkap', 'Alamat') || 'Banjaran';
+        const jenisKegiatan = getVal('Jenis Kegiatan', 'Kegiatan') || 'Luar Gedung';
+        const merokok = getVal('Merokok') || 'Tidak';
+
+        // Auto-register custom wilayah
+        if (typeof addCustomProvinsi === 'function' && provinsi) addCustomProvinsi(provinsi);
+        if (typeof addCustomKabKota === 'function' && kabKota) addCustomKabKota(provinsi, kabKota);
+        if (typeof addCustomKecamatan === 'function' && kecamatan) addCustomKecamatan(provinsi, kabKota, kecamatan);
+        if (typeof addCustomKelurahan === 'function' && kelurahan) addCustomKelurahan(provinsi, kabKota, kecamatan, kelurahan);
+
+        const bbRaw = getVal('BB (kg)', 'BB', 'Berat Badan');
+        const tbRaw = getVal('TB (cm)', 'TB', 'Tinggi Badan');
+        const lpRaw = getVal('LP (cm)', 'LP', 'Lingkar Perut');
+        const bb = parseFloat(bbRaw) || 0;
+        const tb = parseFloat(tbRaw) || 0;
+        const lp = parseFloat(lpRaw) || 0;
+        const imtVal = (tb > 0 && bb > 0) ? (bb / ((tb / 100) * (tb / 100))).toFixed(2) : '';
+
+        const tdSistolRaw = getVal('TD Sistolik', 'Sistol');
+        const tdDiastolRaw = getVal('TD Diastolik', 'Diastol');
+        const tdSistol = parseInt(tdSistolRaw, 10) || 0;
+        const tdDiastol = parseInt(tdDiastolRaw, 10) || 0;
+
+        const gula = getVal('Gula Darah (mg/dL)', 'Gula Darah');
+        const kol = getVal('Kolesterol (mg/dL)', 'Kolesterol');
+        const hb = getVal('HB (g/dL)', 'HB');
+        const telinga = getVal('Pemeriksaan Telinga', 'Telinga');
+        const mata = getVal('Pemeriksaan Mata', 'Mata');
+        const gigi = getVal('Pemeriksaan Gigi', 'Gigi');
+        const katarak = getVal('Pemeriksaan Katarak', 'Katarak');
+
+        const isFullScreening = (bb > 0 || tb > 0 || lp > 0 || tdSistol > 0 || Boolean(gula) || Boolean(kol) || Boolean(hb));
+        const rawRowDate = getVal('Tanggal Entry', 'Tanggal Skrining', 'Tanggal', 'Tgl Entry');
+        const rowDate = formatDateToYYYYMMDD(rawRowDate) || selectedTanggal;
+
+        parsedItems.push({
+          id: 'CKG-' + Date.now() + '-' + (i + 1) + '-' + Math.floor(Math.random() * 1000),
+          jenis_kegiatan: jenisKegiatan,
+          nik: cleanNik,
+          nama: nama || 'Pasien Tanpa Nama',
+          nama_pasien: nama || 'Pasien Tanpa Nama',
+          tanggal_lahir: dobStr,
+          usia: age,
+          jenis_kelamin: jk,
+          no_whatsapp: wa,
+          status_pernikahan: statusNikah,
+          provinsi,
+          kab_kota: kabKota,
+          kecamatan,
+          kelurahan,
+          alamat,
+          pekerjaan,
+          merokok,
+          bb, tb, lp, imt: imtVal,
+          td_sistolik: tdSistol,
+          td_diastolik: tdDiastol,
+          gula_darah: gula || '-',
+          kolesterol: kol || '-',
+          hb: hb || '-',
+          telinga: telinga || 'Normal',
+          mata: mata || 'Normal',
+          gigi: gigi || 'Normal',
+          katarak: katarak || 'Tidak',
+          status_validasi: 'Terverifikasi',
+          petugas_entry: targetPetugas,
+          created_by: targetPetugas,
+          created_at: rowDate,
+          tanggal_entry: rowDate,
+          tanggal: rowDate,
+          is_full_screening: isFullScreening
+        });
       });
+
+      window.__lastCkgImportSkippedNik = skippedInvalidNik;
+      window.__lastCkgImportSampleInvalid = sampleInvalidNik;
+      pendingCkgImportData = parsedItems;
+
       if (fileNameEl) {
-        let text = `<strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) - <span style="color:#059669;font-weight:700;">${valid16Count} NIK Valid (16 Digit)</span>`;
-        if (invalidNikCount > 0) {
-          text += ` <span style="color:#dc2626;font-size:12px;font-weight:600;">(${invalidNikCount} data NIK tidak 16 digit ditolak)</span>`;
+        let text = `<strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) - <span style="color:#059669;font-weight:700;">${parsedItems.length} NIK Valid (16 Digit)</span>`;
+        if (skippedInvalidNik > 0) {
+          text += ` <span style="color:#dc2626;font-size:12px;font-weight:600;">(${skippedInvalidNik} data NIK tidak 16 digit ditolak)</span>`;
         }
         fileNameEl.innerHTML = text;
       }
-    } catch (_) {
-      if (fileNameEl) fileNameEl.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+
+      if (parsedItems.length === 0) {
+        if (btnExec) btnExec.disabled = true;
+        if (previewArea) {
+          previewArea.style.display = 'block';
+          previewArea.innerHTML = `
+            <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:12px; padding:14px; color:#9f1239; font-size:13px; font-weight:700;">
+              ⚠️ Tidak ada data pasien dengan NIK 16 digit valid yang ditemukan pada file ini.
+              ${skippedInvalidNik > 0 ? `<div style="margin-top:6px; font-size:12px; font-weight:500;">Sebanyak ${skippedInvalidNik} baris data ditolak karena format NIK salah.</div>` : ''}
+            </div>
+          `;
+        }
+        return;
+      }
+
+      // Check Duplicates against active database records
+      const isCkgGratisImport = (currentImportTarget === 'ckg-gratis');
+      const targetRecords = (isCkgGratisImport && Array.isArray(ckgGratisRecords) && ckgGratisRecords.length > 0)
+        ? ckgGratisRecords
+        : (Array.isArray(records) ? records : []);
+
+      const existingNikMap = new Map();
+      targetRecords.forEach(r => {
+        if (isNikValidForDuplicate(r.nik)) {
+          existingNikMap.set(String(r.nik).trim(), r);
+        }
+      });
+
+      const duplicateItems = parsedItems.filter(item => isNikValidForDuplicate(item.nik) && existingNikMap.has(String(item.nik).trim()));
+      const newItems = parsedItems.filter(item => !isNikValidForDuplicate(item.nik) || !existingNikMap.has(String(item.nik).trim()));
+
+      if (previewArea) {
+        previewArea.style.display = 'block';
+        if (duplicateItems.length === 0) {
+          pendingCkgImportMode = 'update_and_new';
+          previewArea.innerHTML = `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px; color: #166534; font-size: 13px; font-weight: 700;">
+              <i class="bi bi-check-circle-fill" style="color: #22c55e;"></i> Berhasil membaca <strong>${parsedItems.length}</strong> data pasien dari file Excel.
+              <span style="display: block; font-size: 11.5px; font-weight: 600; color: #15803d; margin-top: 4px;">✅ Seluruh pasien merupakan data baru (belum terdaftar). Aman untuk langsung disimpan ke Cloud D1.</span>
+            </div>
+          `;
+        } else {
+          pendingCkgImportMode = (newItems.length > 0) ? 'update_and_new' : 'update_only';
+
+          const dupList = duplicateItems.slice(0, 6).map(d => {
+            const existInDb = existingNikMap.get(String(d.nik).trim());
+            return `
+              <li style="margin-bottom: 6px; font-size: 12px;">
+                <strong>${escapeHtml(d.nama)}</strong> (NIK: ${escapeHtml(d.nik)})
+                <div style="color: #475569; font-size: 11px;">
+                  Database: <em>${escapeHtml(existInDb.nama || existInDb.nama_pasien || '-')}</em> • Usia: ${escapeHtml(String(existInDb.usia || '-'))} th • Desa: ${escapeHtml(existInDb.kelurahan || '-')}
+                </div>
+              </li>
+            `;
+          }).join('');
+
+          previewArea.innerHTML = `
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;">
+              <div style="font-size: 13.5px; font-weight: 800; color: #166534; display: flex; align-items: center; justify-content: space-between;">
+                <span><i class="bi bi-file-earmark-spreadsheet-fill" style="color: #059669;"></i> Total Terbaca: <strong>${parsedItems.length}</strong> Pasien</span>
+                <span style="font-size: 11.5px; background: #ecfdf5; color: #047857; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #a7f3d0;">Siap Diproses</span>
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 130px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; text-align: center;">
+                  <div style="font-size: 11px; color: #64748b; font-weight: 700;">PASIEN BARU</div>
+                  <div style="font-size: 17px; font-weight: 900; color: #059669;">${newItems.length}</div>
+                </div>
+                <div style="flex: 1; min-width: 130px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; text-align: center;">
+                  <div style="font-size: 11px; color: #64748b; font-weight: 700;">SUDAH TERDAFTAR (UPDATE)</div>
+                  <div style="font-size: 17px; font-weight: 900; color: #2563eb;">${duplicateItems.length}</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+              <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="bi bi-sliders2-vertical" style="color: #059669;"></i> Pilih Tindakan / Mode Import:
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button type="button" id="btnCkgImport_update_and_new" onclick="setCkgImportMode('update_and_new')"
+                  style="text-align: left; padding: 10px 14px; border: 1.5px solid #059669; border-radius: 10px; background: #ecfdf5; color: #064e3b; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.45);">
+                  <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-stars" style="color: #059669;"></i> ✨ Update Identitas Pasien Terdaftar + Tambah Pasien Baru (Rekomendasi)</div>
+                  <div style="font-size: 11.5px; color: #047857; margin-top: 2px;">Perbarui data identitas/domisili ${duplicateItems.length} pasien yang sudah terdaftar & masukkan ${newItems.length} pasien baru ke Cloud D1.</div>
+                </button>
+
+                <button type="button" id="btnCkgImport_update_only" onclick="setCkgImportMode('update_only')"
+                  style="text-align: left; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.2s;">
+                  <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-arrow-repeat" style="color: #2563eb;"></i> 🔄 Update Identitas Saja (${duplicateItems.length} Pasien Terdaftar)</div>
+                  <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Hanya perbarui identitas/domisili pasien yang NIK-nya sudah cocok, lewati ${newItems.length} data pasien baru.</div>
+                </button>
+
+                <button type="button" id="btnCkgImport_new_only" onclick="setCkgImportMode('new_only')"
+                  style="text-align: left; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.2s;">
+                  <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-person-plus-fill" style="color: #059669;"></i> ➕ Tambah Pasien Baru Saja (${newItems.length} Pasien Baru)</div>
+                  <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Hanya daftarkan pasien baru, abaikan ${duplicateItems.length} pasien yang sudah ada di database.</div>
+                </button>
+
+                <button type="button" id="btnCkgImport_insert_all" onclick="setCkgImportMode('insert_all')"
+                  style="text-align: left; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.2s;">
+                  <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-collection-fill" style="color: #d97706;"></i> ⚠️ Tambah Semua Sebagai Data Baru (${parsedItems.length} Pasien)</div>
+                  <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Seluruh baris disimpan sebagai rekaman baru tanpa menimpa data lama (duplikat tetap masuk).</div>
+                </button>
+              </div>
+            </div>
+
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #1e40af; margin-bottom: 12px;">
+              <i class="bi bi-shield-check" style="color: #2563eb;"></i> <strong>Data Aman:</strong> Saat melakukan <em>Update Identitas</em>, hasil riwayat pemeriksaan fisik/klinis & lab yang sudah ada di sistem <strong>tidak akan terhapus</strong>.
+            </div>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; color: #334155; font-size: 12px;">
+              <div style="font-weight: 700; margin-bottom: 6px; color: #1e293b;"><i class="bi bi-people-fill"></i> Contoh Pasien yang Cocok NIK di Database (${duplicateItems.length}):</div>
+              <ul style="margin: 0; padding-left: 18px; line-height: 1.5;">${dupList}</ul>
+              ${duplicateItems.length > 6 ? `<div style="font-size: 11px; color: #64748b; margin-top: 4px;">...dan ${duplicateItems.length - 6} pasien lainnya</div>` : ''}
+            </div>
+          `;
+        }
+      }
+
+      if (btnExec) btnExec.disabled = false;
+
+    } catch (err) {
+      console.error('Error parsing Excel CKG:', err);
+      showToast('Gagal membaca file Excel CKG: ' + err.message, 'danger');
     }
   };
-  countReader.readAsArrayBuffer(file);
-
-  if (fileDetails) fileDetails.style.display = 'block';
-  if (btnExec) btnExec.disabled = false;
+  reader.readAsArrayBuffer(file);
 }
 
 /* ==========================================================================
@@ -5758,3 +6050,9 @@ async function executeAdminXLSXImport() {
     confirmButtonColor: '#7c3aed'
   });
 }
+
+// Window Bindings untuk Import & Update CKG
+window.openImportModal = openImportModal;
+window.closeImportModal = closeImportModal;
+window.setCkgImportMode = setCkgImportMode;
+window.handleImportFileSelect = handleImportFileSelect;

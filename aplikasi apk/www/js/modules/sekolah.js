@@ -319,7 +319,7 @@ function saveMasterSekolahToStorage(newList) {
   }
   syncMasterSekolahToCloud(MASTER_SARANA_SEKOLAH);
   populateSekolahFilterDropdowns();
-  populateLoginSekolahDropdown();
+  if (typeof populateLoginSekolahDropdown === 'function') populateLoginSekolahDropdown();
   renderAdminSekolahTable();
 }
 
@@ -345,15 +345,16 @@ async function fetchMasterSekolahFromCloud() {
         MASTER_SARANA_SEKOLAH = result.data.map(item => ({
           nama: (item.nama || '').trim().toUpperCase(),
           level: (item.level || 'SD').trim().toUpperCase(),
-          password: item.password || '',
+          has_password: Boolean(item.has_password || (item.password && item.password.trim() !== '')),
+          password: '',
           allowed_menus: item.allowed_menus || '',
-          is_active: item.is_active !== undefined ? item.is_active : (item.password ? 1 : 0)
+          is_active: item.is_active !== undefined ? item.is_active : (item.has_password ? 1 : 0)
         }));
         try {
           localStorage.setItem('ckg_master_sekolah', JSON.stringify(MASTER_SARANA_SEKOLAH));
         } catch (_) { }
         populateSekolahFilterDropdowns();
-        populateLoginSekolahDropdown();
+        if (typeof populateLoginSekolahDropdown === 'function') populateLoginSekolahDropdown();
         renderAdminSekolahTable();
       }
     }
@@ -1503,11 +1504,11 @@ function applySekolahFilter() {
 // 📱 RESPONSIVE PAGINATION ENGINE (DESKTOP: 10 DATA, MOBILE/APK: 3 DATA)
 // ==========================================================================
 
-let currentSekolahPage = 1;
-let lastSekolahFilterSignature = '';
+var currentSekolahPage = (typeof currentSekolahPage !== 'undefined') ? currentSekolahPage : 1;
+var lastSekolahFilterSignature = (typeof lastSekolahFilterSignature !== 'undefined') ? lastSekolahFilterSignature : '';
 
-let currentCkgGratisPage = 1;
-let lastCkgGratisFilterSignature = '';
+var currentCkgGratisPage = (typeof currentCkgGratisPage !== 'undefined') ? currentCkgGratisPage : 1;
+var lastCkgGratisFilterSignature = (typeof lastCkgGratisFilterSignature !== 'undefined') ? lastCkgGratisFilterSignature : '';
 
 function isMobileOrApkView() {
   if (typeof window === 'undefined') return false;
@@ -7134,29 +7135,126 @@ function downloadSekolahXLSXTemplate() {
 
   const headers = [
     'NO', 'NAMA SISWA', 'NIK', 'JENIS KELAMIN', 'SEKOLAH', 'KELAS', 'TAHUN SKRINING', 'TANGGAL LAHIR', 'NO WHATSAPP',
-    'ALAMAT', 'BB (KG)', 'TB (CM)', 'LP (CM)', 'TD SISTOLIK', 'TD DIASTOLIK',
+    'PROVINSI', 'KABUPATEN / KOTA', 'KECAMATAN', 'DESA / KELURAHAN', 'ALAMAT',
+    'BB (KG)', 'TB (CM)', 'LP (CM)', 'TD SISTOLIK', 'TD DIASTOLIK',
     'GULA DARAH', 'HB', 'TELINGA (SERUMEN)', 'GIGI KARIES', 'PEMERIKSAAN MATA', 'KUKU',
     'KEBUGARAN', 'MENSTRUASI', 'MEROKOK', 'JENIS ROKOK', 'INTENSITAS MEROKOK', 'JUMLAH BATANG', 'STATUS KESEHATAN', 'CATATAN RUJUKAN'
   ];
 
   const sampleRows = [
-    [1, 'AHMAD FAUZI', '3204011504100001', 'L', 'SDN BANJARAN 01', 'Kelas 1', '2026', '2017-04-15', '081234567890', 'Kp. Pajagalan RT 01 RW 02', 24, 118, 52, 100, 65, '90', '12.5', 'Tidak ada serumen', 'Tidak ada', 'Normal', 'Pendek Bersih', 'Baik', '-', 'Tidak', '-', '-', '-', 'Sehat', '-'],
-    [2, 'SITI NURHALIZA', '3204015508110002', 'P', 'SMPN 1 BANJARAN', 'Kelas 7', '2026', '2012-08-15', '089876543210', 'Kp. Ciapus RT 03 RW 01', 42, 148, 60, 105, 65, '95', '11.8', 'Ada serumen', '2', '-1', 'Panjang Bersih', 'Cukup', 'Sudah', '-', '-', '-', '-', 'Perlu Perhatian', 'Konseling Anemia'],
-    [3, 'RIZKY PRATAMA', '3204012002080003', 'L', 'SMAN 1 BANJARAN', 'Kelas 10', '2026', '2009-02-20', '085712345678', 'Kp. Tarajusari RT 02 RW 04', 55, 168, 70, 115, 75, '100', '13.8', 'Tidak ada serumen', 'Tidak ada', 'Normal', 'Pendek Bersih', 'Baik', '-', 'Aktif', 'Konvensional', 'Tiap Hari', '5', 'Sehat', '-']
+    [1, 'AHMAD FAUZI', '3204011504100001', 'L', 'SDN BANJARAN 01', 'Kelas 1', '2026', '2017-04-15', '081234567890', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Tarajusari', 'Kp. Pajagalan RT 01 RW 02', 24, 118, 52, 100, 65, '90', '12.5', 'Tidak ada serumen', 'Tidak ada', 'Normal', 'Pendek Bersih', 'Baik', '-', 'Tidak', '-', '-', '-', 'Sehat', '-'],
+    [2, 'SITI NURHALIZA', '3204015508110002', 'P', 'SMPN 1 BANJARAN', 'Kelas 7', '2026', '2012-08-15', '089876543210', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Banjaran Kulon', 'Kp. Ciapus RT 03 RW 01', 42, 148, 60, 105, 65, '95', '11.8', 'Ada serumen', '2', '-1', 'Panjang Bersih', 'Cukup', 'Sudah', '-', '-', '-', '-', 'Perlu Perhatian', 'Konseling Anemia'],
+    [3, 'RIZKY PRATAMA', '3204012002080003', 'L', 'SMAN 1 BANJARAN', 'Kelas 10', '2026', '2009-02-20', '085712345678', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Kamasan', 'Kp. Kamasan RT 02 RW 04', 55, 168, 70, 115, 75, '100', '13.8', 'Tidak ada serumen', 'Tidak ada', 'Normal', 'Pendek Bersih', 'Baik', '-', 'Aktif', 'Konvensional', 'Tiap Hari', '5', 'Sehat', '-']
   ];
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 3, 14) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'TEMPLATE_CKG_SEKOLAH');
 
-  XLSX.writeFile(wb, 'TEMPLATE_IMPORT_CKG_SEKOLAH.xlsx');
-  showToast('Template Excel CKG Sekolah berhasil didownload.', 'info');
+  XLSX.writeFile(wb, 'TEMPLATE_IMPORT_CKG_SEKOLAH_LENGKAP.xlsx');
+  showToast('Template Excel CKG Sekolah Lengkap berhasil didownload.', 'info');
+}
+
+function downloadSekolahUpdateIdentitasTemplate() {
+  if (typeof XLSX === 'undefined') {
+    showToast('Library SheetJS XLSX belum dimuat.', 'danger');
+    return;
+  }
+
+  const headers = [
+    'NO', 'NIK (WAJIB KUNCI 16 DIGIT)', 'NAMA LENGKAP SISWA', 'JENIS KELAMIN (L/P)', 'ASAL SEKOLAH', 'KELAS',
+    'TANGGAL LAHIR (YYYY-MM-DD)', 'NO WHATSAPP', 'PROVINSI', 'KABUPATEN / KOTA', 'KECAMATAN', 'DESA / KELURAHAN', 'ALAMAT TEMPAT TINGGAL'
+  ];
+
+  const sampleRows = [
+    [1, '3204011504100001', 'AHMAD FAUZI', 'L', 'SDN BANJARAN 01', 'Kelas 1', '2017-04-15', '081234567890', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Tarajusari', 'Kp. Pajagalan RT 01 RW 02'],
+    [2, '3204015508110002', 'SITI NURHALIZA', 'P', 'SMPN 1 BANJARAN', 'Kelas 7', '2012-08-15', '089876543210', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Banjaran Kulon', 'Kp. Ciapus RT 03 RW 01'],
+    [3, '3204012002080003', 'RIZKY PRATAMA', 'L', 'SMAN 1 BANJARAN', 'Kelas 10', '2009-02-20', '085712345678', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Kamasan', 'Kp. Kamasan RT 02 RW 04']
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 3, 16) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'UPDATE_IDENTITAS_SISWA');
+
+  XLSX.writeFile(wb, `Template_Update_Identitas_Siswa_${new Date().toISOString().substring(0, 10)}.xlsx`);
+  showToast('Template Khusus Update Identitas Siswa berhasil didownload.', 'success');
+}
+
+let pendingSekolahImportMode = 'update_and_new'; // 'update_and_new' | 'update_only' | 'new_only' | 'insert_all'
+
+function setSekolahImportMode(mode) {
+  pendingSekolahImportMode = mode;
+  const modes = ['update_and_new', 'update_only', 'new_only', 'insert_all'];
+  modes.forEach(m => {
+    const btn = document.getElementById(`btnSekolahImport_${m}`);
+    if (btn) {
+      if (m === mode) {
+        btn.style.boxShadow = '0 0 0 3px rgba(5, 150, 105, 0.45)';
+        btn.style.borderColor = '#059669';
+        btn.style.background = '#ecfdf5';
+        btn.style.transform = 'scale(1.01)';
+      } else {
+        btn.style.boxShadow = 'none';
+        btn.style.borderColor = '#cbd5e1';
+        btn.style.background = '#ffffff';
+        btn.style.transform = 'scale(1)';
+      }
+    }
+  });
+}
+
+function mergeSiswaIdentity(existing, item) {
+  const updated = {
+    ...existing,
+    nama: item.nama || existing.nama,
+    jk: item.jk || existing.jk,
+    sekolah: item.sekolah || existing.sekolah,
+    kelas: item.kelas || existing.kelas,
+    tanggal_lahir: item.tanggal_lahir || existing.tanggal_lahir,
+    no_whatsapp: item.no_whatsapp || existing.no_whatsapp,
+    provinsi: item.provinsi || existing.provinsi || 'Jawa Barat',
+    kab_kota: item.kab_kota || existing.kab_kota || 'Kabupaten Bandung',
+    kecamatan: item.kecamatan || existing.kecamatan || 'Banjaran',
+    kelurahan: item.kelurahan || existing.kelurahan || 'Tarajusari',
+    alamat: item.alamat || existing.alamat,
+    identitas_done: 1
+  };
+
+  if (item.bb > 0) updated.bb = item.bb;
+  if (item.tb > 0) updated.tb = item.tb;
+  if (item.lp > 0) updated.lp = item.lp;
+  if (item.imt > 0) { updated.imt = item.imt; updated.status_imt = item.status_imt; }
+  if (item.td_sistolik > 0) updated.td_sistolik = item.td_sistolik;
+  if (item.td_diastolik > 0) updated.td_diastolik = item.td_diastolik;
+  if (item.gula_darah && item.gula_darah !== '-') updated.gula_darah = item.gula_darah;
+  if (item.hb && item.hb !== '-') updated.hb = item.hb;
+  if (item.telinga && item.telinga !== '-') updated.telinga = item.telinga;
+  if (item.gigi && item.gigi !== '-') updated.gigi = item.gigi;
+  if (item.mata && item.mata !== '-') updated.mata = item.mata;
+  if (item.kuku && item.kuku !== '-') updated.kuku = item.kuku;
+  if (item.kebugaran && item.kebugaran !== '-') updated.kebugaran = item.kebugaran;
+  if (item.menstruasi && item.menstruasi !== '-') updated.menstruasi = item.menstruasi;
+  if (item.merokok && item.merokok !== '-') updated.merokok = item.merokok;
+  if (item.status_kesehatan && item.status_kesehatan !== 'Sehat' && item.status_kesehatan !== '-') updated.status_kesehatan = item.status_kesehatan;
+  if (item.catatan_rujukan && item.catatan_rujukan !== '-') updated.catatan_rujukan = item.catatan_rujukan;
+
+  if (updated.bb > 0 && updated.tb > 0) updated.antro_done = 1;
+  if (updated.td_sistolik > 0) updated.vital_done = 1;
+  if ((updated.hb && updated.hb !== '-') || (updated.gula_darah && updated.gula_darah !== '-')) updated.lab_done = 1;
+  if (updated.telinga !== '-' || updated.gigi !== '-' || updated.mata !== '-') updated.organ_done = 1;
+  if (updated.status_kesehatan !== '-' || updated.catatan_rujukan !== '-') updated.kesimpulan_done = 1;
+  updated.is_examined = (updated.antro_done || updated.vital_done || updated.lab_done || updated.organ_done || updated.kesimpulan_done) ? 1 : 0;
+
+  return updated;
 }
 
 function openImportSekolahModal() {
   const modal = document.getElementById('modalImportSekolah');
   if (!modal) return;
   pendingSekolahImportData = null;
+  pendingSekolahImportMode = 'update_and_new';
   document.getElementById('sekolahImportFileInput').value = '';
   document.getElementById('sekolahImportDropzoneText').textContent = 'Pilih atau Tarik File Excel CKG Sekolah (.xlsx / .csv)';
   document.getElementById('sekolahImportPreviewArea').style.display = 'none';
@@ -7204,6 +7302,10 @@ function handleSekolahImportFileSelect(event) {
       const idxKelas = getColIdx(['KELAS']);
       const idxTglLahir = getColIdx(['TANGGAL LAHIR', 'TGL LAHIR', 'DOB']);
       const idxWa = getColIdx(['NO WHATSAPP', 'WA', 'HP', 'TELEPON']);
+      const idxProv = getColIdx(['PROVINSI']);
+      const idxKab = getColIdx(['KABUPATEN', 'KAB/KOTA', 'KOTA', 'KAB.']);
+      const idxKec = getColIdx(['KECAMATAN', 'KEC.']);
+      const idxKel = getColIdx(['DESA / KELURAHAN', 'KELURAHAN', 'DESA', 'KEL.']);
       const idxAlamat = getColIdx(['ALAMAT']);
       const idxBb = getColIdx(['BB']);
       const idxTb = getColIdx(['TB']);
@@ -7241,7 +7343,7 @@ function handleSekolahImportFileSelect(event) {
         const rawNik = idxNik >= 0 ? String(row[idxNik] || '').trim() : '';
         const cleanNik = extractCleanNik16(rawNik);
 
-        // FILTER NIK WAJIB 16 DIGIT: Kurang atau lebih dari 16 digit DITOLAK / TIDAK BISA MASUK
+        // FILTER NIK WAJIB 16 DIGIT: Kurang atau lebih dari 16 digit DITOLAK
         if (cleanNik.length !== 16) {
           skippedInvalidNik++;
           if (sampleInvalidNik.length < 5) {
@@ -7257,7 +7359,18 @@ function handleSekolahImportFileSelect(event) {
         const nikVal = cleanNik;
         const tglLahirVal = idxTglLahir >= 0 ? formatDateToYYYYMMDD(row[idxTglLahir]) : '';
         const waVal = idxWa >= 0 ? String(row[idxWa] || '').trim() : '';
+        const provVal = (idxProv >= 0 && row[idxProv]) ? String(row[idxProv]).trim() : 'Jawa Barat';
+        const kabVal = (idxKab >= 0 && row[idxKab]) ? String(row[idxKab]).trim() : 'Kabupaten Bandung';
+        const kecVal = (idxKec >= 0 && row[idxKec]) ? String(row[idxKec]).trim() : 'Banjaran';
+        const kelVal = (idxKel >= 0 && row[idxKel]) ? String(row[idxKel]).trim() : 'Tarajusari';
         const alamatVal = idxAlamat >= 0 ? String(row[idxAlamat] || '').trim().toUpperCase() : '';
+
+        // Auto-register custom wilayah
+        if (typeof addCustomProvinsi === 'function' && provVal) addCustomProvinsi(provVal);
+        if (typeof addCustomKabKota === 'function' && kabVal) addCustomKabKota(provVal, kabVal);
+        if (typeof addCustomKecamatan === 'function' && kecVal) addCustomKecamatan(provVal, kabVal, kecVal);
+        if (typeof addCustomKelurahan === 'function' && kelVal) addCustomKelurahan(provVal, kabVal, kecVal, kelVal);
+
         const bbVal = idxBb >= 0 ? parseFloat(row[idxBb]) || 0 : 0;
         const tbVal = idxTb >= 0 ? parseFloat(row[idxTb]) || 0 : 0;
         const lpVal = idxLp >= 0 ? parseFloat(row[idxLp]) || 0 : 0;
@@ -7313,10 +7426,10 @@ function handleSekolahImportFileSelect(event) {
           nik: nikVal,
           tanggal_lahir: tglLahirVal,
           no_whatsapp: waVal,
-          provinsi: 'Jawa Barat',
-          kab_kota: 'Kab. Bandung',
-          kecamatan: 'Banjaran',
-          kelurahan: 'Tarajusari',
+          provinsi: provVal,
+          kab_kota: kabVal,
+          kecamatan: kecVal,
+          kelurahan: kelVal,
           alamat: alamatVal,
           bb: bbVal,
           tb: tbVal,
@@ -7352,86 +7465,108 @@ function handleSekolahImportFileSelect(event) {
         });
       }
 
+      window.__lastSekolahImportSkippedNik = skippedInvalidNik;
       pendingSekolahImportData = parsedItems;
       document.getElementById('sekolahImportDropzoneText').textContent = `File Terpilih: ${file.name} (${parsedItems.length} Siswa Terdeteksi)`;
 
-      // --- Anti-Duplikat: Cek NIK duplikat terhadap data yang sudah ada di database ---
-      // PENTING: NIK kosong / tidak valid TIDAK dianggap duplikat data!
-      const existingNikSet = new Set();
+      // Pengecekan NIK Duplikat / Cocok dengan Database
+      const existingNikMap = new Map();
       sekolahRecords.forEach(r => {
-        if (isNikValidForDuplicate(r.nik)) existingNikSet.add(String(r.nik).trim());
-      });
-
-      const duplicateItems = parsedItems.filter(item => isNikValidForDuplicate(item.nik) && existingNikSet.has(String(item.nik).trim()));
-      const newItems = parsedItems.filter(item => !isNikValidForDuplicate(item.nik) || !existingNikSet.has(String(item.nik).trim()));
-
-      // Cek duplikat di dalam file Excel itu sendiri (hanya NIK valid)
-      const fileNikMap = {};
-      parsedItems.forEach(item => {
-        if (isNikValidForDuplicate(item.nik)) {
-          const nik = String(item.nik).trim();
-          if (!fileNikMap[nik]) fileNikMap[nik] = [];
-          fileNikMap[nik].push(item);
+        if (isNikValidForDuplicate(r.nik)) {
+          existingNikMap.set(String(r.nik).trim(), r);
         }
       });
-      const internalDuplicateNiks = Object.keys(fileNikMap).filter(k => fileNikMap[k].length > 1);
+
+      const duplicateItems = parsedItems.filter(item => isNikValidForDuplicate(item.nik) && existingNikMap.has(String(item.nik).trim()));
+      const newItems = parsedItems.filter(item => !isNikValidForDuplicate(item.nik) || !existingNikMap.has(String(item.nik).trim()));
 
       const previewArea = document.getElementById('sekolahImportPreviewArea');
       previewArea.style.display = 'block';
 
-      if (duplicateItems.length === 0 && internalDuplicateNiks.length === 0) {
-        // No duplicates found - simple green message
+      if (duplicateItems.length === 0) {
+        // Tidak ada data terdaftar sebelumnya -> semua siswa baru
+        pendingSekolahImportMode = 'update_and_new';
         previewArea.innerHTML = `
           <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px; color: #166534; font-size: 13px; font-weight: 700;">
-            <i class="bi bi-check-circle-fill" style="color: #22c55e;"></i> Berhasil membaca ${parsedItems.length} data siswa dari file Excel.
-            <span style="display: block; font-size: 11px; font-weight: 600; color: #15803d; margin-top: 4px;">✅ Tidak ada data duplikat ditemukan. Aman untuk diimport langsung.</span>
+            <i class="bi bi-check-circle-fill" style="color: #22c55e;"></i> Berhasil membaca <strong>${parsedItems.length}</strong> data siswa dari file Excel.
+            <span style="display: block; font-size: 11.5px; font-weight: 600; color: #15803d; margin-top: 4px;">✅ Seluruh siswa merupakan data baru (belum terdaftar). Aman untuk langsung disimpan ke Cloud D1.</span>
           </div>
         `;
-        pendingSekolahImportSkipDuplicates = false;
-        pendingSekolahImportNewOnly = parsedItems;
       } else {
-        // Duplicates found - show warning
-        const dupList = duplicateItems.slice(0, 8).map(d => {
-          const existInDb = sekolahRecords.find(r => isNikValidForDuplicate(r.nik) && String(r.nik).trim() === String(d.nik).trim());
-          return `<li style="margin-bottom: 4px;"><strong>${escapeHtml(d.nama)}</strong> (NIK: ${escapeHtml(d.nik)})${existInDb ? ' - sudah ada: <em>' + escapeHtml(existInDb.nama) + '</em> (' + escapeHtml(existInDb.sekolah || '') + ')' : ''}</li>`;
+        // Ditemukan data siswa yang NIK-nya sudah terdaftar -> Sediakan pilihan Update Identitas
+        pendingSekolahImportMode = (newItems.length > 0) ? 'update_and_new' : 'update_only';
+
+        const dupList = duplicateItems.slice(0, 6).map(d => {
+          const existInDb = existingNikMap.get(String(d.nik).trim());
+          return `
+            <li style="margin-bottom: 6px; font-size: 12px;">
+              <strong>${escapeHtml(d.nama)}</strong> (NIK: ${escapeHtml(d.nik)})
+              <div style="color: #475569; font-size: 11px;">
+                Database: <em>${escapeHtml(existInDb.nama || '-')}</em> • Kelas: ${escapeHtml(existInDb.kelas || '-')} • Sekolah: ${escapeHtml(existInDb.sekolah || '-')}
+              </div>
+            </li>
+          `;
         }).join('');
 
-        let internalDupHtml = '';
-        if (internalDuplicateNiks.length > 0) {
-          internalDupHtml = `
-            <div style="background: #fefce8; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-top: 8px; font-size: 11.5px; color: #854d0e;">
-              <i class="bi bi-exclamation-triangle-fill"></i> <strong>${internalDuplicateNiks.length} NIK duplikat</strong> ditemukan <em>di dalam file Excel itu sendiri</em>.
-            </div>
-          `;
-        }
-
         previewArea.innerHTML = `
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px; color: #166534; font-size: 13px; font-weight: 700; margin-bottom: 10px;">
-            <i class="bi bi-check-circle-fill" style="color: #22c55e;"></i> Berhasil membaca ${parsedItems.length} data siswa dari file Excel.
+          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="font-size: 13.5px; font-weight: 800; color: #166534; display: flex; align-items: center; justify-content: space-between;">
+              <span><i class="bi bi-file-earmark-spreadsheet-fill" style="color: #059669;"></i> Total Terbaca: <strong>${parsedItems.length}</strong> Siswa</span>
+              <span style="font-size: 11.5px; background: #ecfdf5; color: #047857; font-weight: 700; padding: 2px 8px; border-radius: 12px; border: 1px solid #a7f3d0;">Siap Diproses</span>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 130px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; text-align: center;">
+                <div style="font-size: 11px; color: #64748b; font-weight: 700;">SISWA BARU</div>
+                <div style="font-size: 17px; font-weight: 900; color: #059669;">${newItems.length}</div>
+              </div>
+              <div style="flex: 1; min-width: 130px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; text-align: center;">
+                <div style="font-size: 11px; color: #64748b; font-weight: 700;">SUDAH TERDAFTAR (UPDATE)</div>
+                <div style="font-size: 17px; font-weight: 900; color: #2563eb;">${duplicateItems.length}</div>
+              </div>
+            </div>
           </div>
-          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 14px; color: #991b1b; font-size: 12.5px;">
-            <div style="font-weight: 800; font-size: 13px; margin-bottom: 6px;">
-              <i class="bi bi-exclamation-diamond-fill" style="color: #dc2626;"></i> ${duplicateItems.length} Data Duplikat NIK Ditemukan!
+
+          <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+              <i class="bi bi-sliders2-vertical" style="color: #059669;"></i> Pilih Tindakan / Mode Import:
             </div>
-            <ul style="margin: 0; padding-left: 18px; line-height: 1.6;">${dupList}</ul>
-            ${duplicateItems.length > 8 ? '<div style="font-size: 11px; color: #b91c1c; margin-top: 4px;">...dan ' + (duplicateItems.length - 8) + ' lainnya</div>' : ''}
-            ${internalDupHtml}
-            <div style="font-size: 11.5px; color: #64748b; margin: 8px 0 10px 0;">
-              *Siswa dengan NIK kosong tetap dianggap data baru dan aman diimport.
-            </div>
-            <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-              <button type="button" onclick="setImportDupMode(true)" id="btnImportSkipDup" class="btn btn-sm" style="background: #059669; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 12px; cursor: pointer; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.4); transform: scale(1.02);">
-                <i class="bi bi-funnel-fill"></i> Import Hanya Data Baru (${newItems.length} siswa)
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button type="button" id="btnSekolahImport_update_and_new" onclick="setSekolahImportMode('update_and_new')"
+                style="text-align: left; padding: 10px 14px; border: 1.5px solid #059669; border-radius: 10px; background: #ecfdf5; color: #064e3b; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.45);">
+                <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-stars" style="color: #059669;"></i> ✨ Update Identitas Siswa Terdaftar + Tambah Siswa Baru (Rekomendasi)</div>
+                <div style="font-size: 11.5px; color: #047857; margin-top: 2px;">Perbarui data identitas ${duplicateItems.length} siswa yang sudah terdaftar & masukkan ${newItems.length} siswa baru ke Cloud D1.</div>
               </button>
-              <button type="button" onclick="setImportDupMode(false)" id="btnImportAllDup" class="btn btn-sm" style="background: #d97706; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 12px; cursor: pointer;">
-                <i class="bi bi-arrow-repeat"></i> Import Semua (${parsedItems.length} siswa)
+
+              <button type="button" id="btnSekolahImport_update_only" onclick="setSekolahImportMode('update_only')"
+                style="text-align: left; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.2s;">
+                <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-arrow-repeat" style="color: #2563eb;"></i> 🔄 Update Identitas Saja (${duplicateItems.length} Siswa Terdaftar)</div>
+                <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Hanya perbarui identitas/domisili siswa yang sudah cocok NIK, lewati ${newItems.length} data siswa baru.</div>
+              </button>
+
+              <button type="button" id="btnSekolahImport_new_only" onclick="setSekolahImportMode('new_only')"
+                style="text-align: left; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.2s;">
+                <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-person-plus-fill" style="color: #059669;"></i> ➕ Tambah Siswa Baru Saja (${newItems.length} Siswa Baru)</div>
+                <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Hanya daftarkan siswa baru, abaikan ${duplicateItems.length} siswa yang sudah ada di database.</div>
+              </button>
+
+              <button type="button" id="btnSekolahImport_insert_all" onclick="setSekolahImportMode('insert_all')"
+                style="text-align: left; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; background: #ffffff; color: #1e293b; cursor: pointer; transition: all 0.2s;">
+                <div style="font-weight: 800; font-size: 12.5px;"><i class="bi bi-collection-fill" style="color: #d97706;"></i> ⚠️ Tambah Semua Sebagai Data Baru (${parsedItems.length} Siswa)</div>
+                <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Seluruh baris disimpan sebagai rekaman baru tanpa menimpa data lama (duplikat tetap masuk).</div>
               </button>
             </div>
+          </div>
+
+          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #1e40af; margin-bottom: 12px;">
+            <i class="bi bi-shield-check" style="color: #2563eb;"></i> <strong>Data Aman:</strong> Saat melakukan <em>Update Identitas</em>, hasil pemeriksaan fisik/klinis (BB, TB, tensi, lab, dll.) yang sudah ada di sistem <strong>tidak akan terhapus</strong>.
+          </div>
+
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 14px; color: #334155; font-size: 12px;">
+            <div style="font-weight: 700; margin-bottom: 6px; color: #1e293b;"><i class="bi bi-people-fill"></i> Contoh Siswa yang Cocok NIK di Database (${duplicateItems.length}):</div>
+            <ul style="margin: 0; padding-left: 18px; line-height: 1.5;">${dupList}</ul>
+            ${duplicateItems.length > 6 ? `<div style="font-size: 11px; color: #64748b; margin-top: 4px;">...dan ${duplicateItems.length - 6} siswa lainnya</div>` : ''}
           </div>
         `;
-        // Default to skip duplicates
-        pendingSekolahImportSkipDuplicates = true;
-        pendingSekolahImportNewOnly = newItems;
       }
       document.getElementById('btnExecuteSekolahImport').disabled = false;
 
@@ -7446,19 +7581,61 @@ function handleSekolahImportFileSelect(event) {
 async function executeSekolahXLSXImport() {
   if (!pendingSekolahImportData || pendingSekolahImportData.length === 0) return;
 
-  const itemsToUpload = (pendingSekolahImportSkipDuplicates && pendingSekolahImportNewOnly)
-    ? pendingSekolahImportNewOnly
-    : pendingSekolahImportData;
+  const existingNikMap = new Map();
+  sekolahRecords.forEach(r => {
+    if (isNikValidForDuplicate(r.nik)) {
+      existingNikMap.set(String(r.nik).trim(), r);
+    }
+  });
+
+  const duplicateItems = pendingSekolahImportData.filter(item => isNikValidForDuplicate(item.nik) && existingNikMap.has(String(item.nik).trim()));
+  const newItems = pendingSekolahImportData.filter(item => !isNikValidForDuplicate(item.nik) || !existingNikMap.has(String(item.nik).trim()));
+
+  let itemsToUpload = [];
+  let updatedCount = 0;
+  let newCount = 0;
+
+  if (pendingSekolahImportMode === 'update_only') {
+    duplicateItems.forEach(item => {
+      const existing = existingNikMap.get(String(item.nik).trim());
+      if (existing) {
+        itemsToUpload.push(mergeSiswaIdentity(existing, item));
+        updatedCount++;
+      }
+    });
+  } else if (pendingSekolahImportMode === 'new_only') {
+    itemsToUpload = newItems;
+    newCount = newItems.length;
+  } else if (pendingSekolahImportMode === 'insert_all') {
+    itemsToUpload = pendingSekolahImportData;
+    newCount = pendingSekolahImportData.length;
+  } else {
+    // Mode Default: 'update_and_new'
+    duplicateItems.forEach(item => {
+      const existing = existingNikMap.get(String(item.nik).trim());
+      if (existing) {
+        itemsToUpload.push(mergeSiswaIdentity(existing, item));
+        updatedCount++;
+      } else {
+        itemsToUpload.push(item);
+        newCount++;
+      }
+    });
+    newItems.forEach(item => {
+      itemsToUpload.push(item);
+      newCount++;
+    });
+  }
 
   const total = itemsToUpload.length;
   if (total === 0) {
-    showToast('Tidak ada data baru untuk diimport (seluruh data duplikat dilewati).', 'warning');
+    showToast('Tidak ada data siswa yang diproses dengan mode yang dipilih.', 'warning');
     return;
   }
 
   Swal.fire({
-    title: 'Mengunggah ke Cloud Database...',
-    html: `Sedang mengunggah <strong>${total}</strong> data siswa langsung ke server Cloudflare D1...`,
+    title: 'Menyimpan & Sinkronisasi Cloud...',
+    html: `Sedang memproses <strong>${total}</strong> data siswa (${updatedCount > 0 ? updatedCount + ' update identitas, ' : ''}${newCount > 0 ? newCount + ' data baru' : ''}) ke Cloudflare D1...`,
     allowOutsideClick: false,
     didOpen: () => {
       Swal.showLoading();
@@ -7466,7 +7643,6 @@ async function executeSekolahXLSXImport() {
   });
 
   try {
-    // Send in chunks of 50 to prevent large payload timeouts
     const chunkSize = 50;
     for (let i = 0; i < total; i += chunkSize) {
       const chunk = itemsToUpload.slice(i, i + chunkSize);
@@ -7484,14 +7660,23 @@ async function executeSekolahXLSXImport() {
     const skippedNik = window.__lastSekolahImportSkippedNik || 0;
     if (skippedNik > 0) {
       skippedNotice = `<div style="margin-top:10px; font-size:12.5px; color:#92400e; background:#fffbeb; padding:8px 12px; border-radius:8px; border:1px solid #fde68a; text-align:left;">
-        ⚠️ <strong>${skippedNik} data siswa dilewati / ditolak</strong> karena NIK tidak persis 16 digit.
+        ⚠️ <strong>${skippedNik} baris data siswa ditolak</strong> karena NIK tidak 16 digit.
       </div>`;
+    }
+
+    let summaryText = `Sebanyak <strong>${total}</strong> data siswa berhasil diproses.`;
+    if (updatedCount > 0 && newCount > 0) {
+      summaryText = `Berhasil memperbarui <strong>${updatedCount}</strong> identitas siswa terdaftar dan menambahkan <strong>${newCount}</strong> siswa baru ke Cloud D1.`;
+    } else if (updatedCount > 0) {
+      summaryText = `Berhasil memperbarui <strong>${updatedCount}</strong> identitas siswa yang sudah terdaftar di Cloud D1.`;
+    } else if (newCount > 0) {
+      summaryText = `Berhasil menambahkan <strong>${newCount}</strong> data siswa baru ke Cloud D1.`;
     }
 
     Swal.fire({
       icon: 'success',
-      title: 'Import ke Cloud Berhasil!',
-      html: `Sebanyak <strong>${total}</strong> data siswa berhasil diunggah langsung ke Cloud Database.${skippedNotice}`,
+      title: 'Import & Sinkronisasi Berhasil!',
+      html: `<div style="font-size: 13.5px; line-height: 1.6;">${summaryText}${skippedNotice}</div>`,
       confirmButtonColor: '#059669'
     });
   } catch (err) {
@@ -9586,15 +9771,15 @@ window.applyBankDataStateToIdentitas = applyBankDataStateToIdentitas;
 window.cekNikSiswaBankData = cekNikSiswaBankData;
 
 
-// Window Bindings untuk Searchable Dropdown & Popup Login Sekolah
-window.populateLoginSekolahDropdown = populateLoginSekolahDropdown;
-window.toggleLoginSekolahDropdown = toggleLoginSekolahDropdown;
-window.closeLoginSekolahDropdown = closeLoginSekolahDropdown;
-window.onFilterLoginSekolahSearchInput = onFilterLoginSekolahSearchInput;
-window.clearSearchInputLoginSekolah = clearSearchInputLoginSekolah;
-window.selectLoginSekolahOption = selectLoginSekolahOption;
-window.clearLoginSekolahSelection = clearLoginSekolahSelection;
-window.handleSekolahLogin = handleSekolahLogin;
+// Window Bindings untuk Searchable Dropdown & Popup Login Sekolah (Guarded jika fungsi dimuat di app.js)
+if (typeof populateLoginSekolahDropdown !== 'undefined') window.populateLoginSekolahDropdown = populateLoginSekolahDropdown;
+if (typeof toggleLoginSekolahDropdown !== 'undefined') window.toggleLoginSekolahDropdown = toggleLoginSekolahDropdown;
+if (typeof closeLoginSekolahDropdown !== 'undefined') window.closeLoginSekolahDropdown = closeLoginSekolahDropdown;
+if (typeof onFilterLoginSekolahSearchInput !== 'undefined') window.onFilterLoginSekolahSearchInput = onFilterLoginSekolahSearchInput;
+if (typeof clearSearchInputLoginSekolah !== 'undefined') window.clearSearchInputLoginSekolah = clearSearchInputLoginSekolah;
+if (typeof selectLoginSekolahOption !== 'undefined') window.selectLoginSekolahOption = selectLoginSekolahOption;
+if (typeof clearLoginSekolahSelection !== 'undefined') window.clearLoginSekolahSelection = clearLoginSekolahSelection;
+if (typeof handleSekolahLogin !== 'undefined') window.handleSekolahLogin = handleSekolahLogin;
 
 // Searchable Wilayah Dropdowns (Cek Kesehatan Gratis & CKG Sekolah)
 window.toggleWilayahSearchDropdown = toggleWilayahSearchDropdown;
@@ -9614,6 +9799,14 @@ window.cekNikTambahSiswaBankData = cekNikTambahSiswaBankData;
 window.calculateTambahSiswaAge = calculateTambahSiswaAge;
 window.setTambahSiswaFieldsLockState = setTambahSiswaFieldsLockState;
 window.updateBankDataBadgeStatusTambah = updateBankDataBadgeStatusTambah;
+
+// Import & Update Identitas Siswa CKG Sekolah
+window.downloadSekolahXLSXTemplate = downloadSekolahXLSXTemplate;
+window.downloadSekolahUpdateIdentitasTemplate = downloadSekolahUpdateIdentitasTemplate;
+window.setSekolahImportMode = setSekolahImportMode;
+window.handleSekolahImportFileSelect = handleSekolahImportFileSelect;
+window.executeSekolahXLSXImport = executeSekolahXLSXImport;
+window.isNikValidForDuplicate = isNikValidForDuplicate;
 
 document.addEventListener('click', (e) => {
   const wrapper = document.getElementById('comboboxLoginSekolahWrapper');

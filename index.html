@@ -4828,18 +4828,22 @@
           </div>
           <ul
             style="font-size: 12.5px; color: #166534; margin: 0; padding-left: 20px; line-height: 1.6; font-weight: 600;">
-            <li>Template disusun <strong>100% presisi sesuai Form Input Data CKG Pasien</strong> (28 variabel CKG
-              lengkap).</li>
-            <li>Kolom utama: NIK, Nama Pasien, Jenis Kegiatan, Tanggal Lahir, Antropometri & Skrining Fisik.</li>
-            <li>Sistem akan otomatis menghitung <strong>IMT, Kategori Usia, dan Status Validasi</strong>.</li>
+            <li>Mendukung import <strong>Skrining Lengkap</strong> maupun <strong>Khusus Update Identitas Pasien</strong>.</li>
+            <li>Kolom Identitas: <strong>NIK, Nama, JK, Tgl Lahir, No WA, Status Nikah, Pekerjaan, Provinsi, Kab/Kota, Kecamatan, Kelurahan, Alamat</strong>.</li>
+            <li>Data riwayat pemeriksaan fisik/laboratorium yang sudah ada <strong>tetap aman dan terjaga</strong> saat update identitas via NIK.</li>
             <li><strong style="color: #dc2626;"><i class="bi bi-shield-lock-fill"></i> WAJIB NIK 16 DIGIT:</strong> Baris data dengan NIK kurang atau lebih dari 16 digit otomatis ditolak / tidak masuk.</li>
           </ul>
 
-          <button class="btn btn-emerald btn-sm" onclick="downloadXLSXTemplate()"
-            style="margin-top: 14px; font-weight: 700; width: 100%; justify-content: center; padding: 10px 18px; border-radius: 10px; background: linear-gradient(135deg, #059669, #10b981); color: #fff; border: none; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25); cursor: pointer;">
-            <i class="bi bi-file-earmark-arrow-down-fill" style="font-size: 16px;"></i> Download Template XLSX Presisi
-            Form CKG (.xlsx)
-          </button>
+          <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-emerald btn-sm" onclick="downloadXLSXTemplate()"
+              style="flex: 1; min-width: 220px; font-weight: 700; justify-content: center; padding: 10px 14px; border-radius: 10px; background: linear-gradient(135deg, #059669, #10b981); color: #fff; border: none; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25); cursor: pointer;">
+              <i class="bi bi-file-earmark-spreadsheet-fill" style="font-size: 15px;"></i> Template Skrining Lengkap (.xlsx)
+            </button>
+            <button type="button" class="btn btn-sm" onclick="downloadCkgUpdateIdentitasTemplate()"
+              style="flex: 1; min-width: 220px; font-weight: 700; justify-content: center; padding: 10px 14px; border-radius: 10px; background: #ffffff; color: #047857; border: 1.5px solid #059669; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.12); cursor: pointer;">
+              <i class="bi bi-person-lines-fill" style="font-size: 15px;"></i> Template Update Identitas (.xlsx)
+            </button>
+          </div>
         </div>
 
         <!-- Tanggal Entry Data Selector -->
@@ -4896,6 +4900,11 @@
           <i class="bi bi-file-earmark-spreadsheet-fill" style="color: #2563eb; font-size: 20px;"></i> <span
             id="importFileName" style="flex: 1; word-break: break-all;">file.xlsx</span> <span
             class="badge badge-emerald" style="font-size: 11px;">File Terpilih</span>
+        </div>
+
+        <!-- Preview & Mode Selection Area -->
+        <div id="importCkgPreviewArea" style="display: none; margin-top: 16px;">
+          <!-- Dynamically populated via handleImportFileSelect -->
         </div>
 
       </div>
@@ -6184,19 +6193,22 @@
           </div>
           <ul
             style="font-size: 12px; color: #047857; margin: 0; padding-left: 18px; line-height: 1.6; font-weight: 600;">
-            <li>Gunakan format 24 kolom standar CKG Sekolah.</li>
-            <li>Kolom: <strong>NO, NAMA, KELAS, SEKOLAH, JK, NIK, TANGGAL LAHIR, NO WHATSAPP, PROVINSI, KAB/KOTA,
-                KECAMATAN, KELURAHAN, ALAMAT, BB, TB, LP, TD SISTOLIK, TD DIASTOLIK, GULA DARAH, HB, KARIES, KEBUGARAN,
-                MENSTRUASI, KACAMATA</strong>.</li>
-            <li>Data yang diimport terpisah sepenuhnya dan langsung disinkronkan ke Cloudflare D1.</li>
+            <li>Mendukung import <strong>Skrining Lengkap</strong> maupun <strong>Khusus Update Identitas Siswa</strong>.</li>
+            <li>Kolom Identitas: <strong>NIK, NAMA, JK, ASAL SEKOLAH, KELAS, TANGGAL LAHIR, NO WA, PROVINSI, KAB/KOTA, KECAMATAN, KELURAHAN, ALAMAT</strong>.</li>
+            <li>Data pemeriksaan pos CKG yang sudah ada <strong>tetap aman dan terjaga</strong> saat update identitas via NIK.</li>
             <li><strong style="color: #dc2626;"><i class="bi bi-shield-lock-fill"></i> WAJIB NIK 16 DIGIT:</strong> Siswa dengan NIK kurang atau lebih dari 16 digit otomatis ditolak / tidak masuk.</li>
           </ul>
 
-          <button class="btn btn-sekolah-primary btn-sm" onclick="downloadSekolahXLSXTemplate()"
-            style="margin-top: 12px; font-weight: 700; width: 100%; justify-content: center; padding: 9px 16px; border-radius: 10px; background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);">
-            <i class="bi bi-file-earmark-arrow-down-fill" style="font-size: 15px;"></i> Download Template Excel CKG
-            Sekolah (.xlsx)
-          </button>
+          <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sekolah-primary btn-sm" onclick="downloadSekolahXLSXTemplate()"
+              style="flex: 1; min-width: 200px; font-weight: 700; justify-content: center; padding: 9px 12px; border-radius: 10px; background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);">
+              <i class="bi bi-file-earmark-spreadsheet-fill" style="font-size: 15px;"></i> Template Skrining Lengkap (.xlsx)
+            </button>
+            <button type="button" class="btn btn-sm" onclick="downloadSekolahUpdateIdentitasTemplate()"
+              style="flex: 1; min-width: 200px; font-weight: 700; justify-content: center; padding: 9px 12px; border-radius: 10px; background: #ffffff; color: #047857; border: 1.5px solid #059669; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.1);">
+              <i class="bi bi-person-lines-fill" style="font-size: 15px;"></i> Template Update Identitas (.xlsx)
+            </button>
+          </div>
         </div>
 
         <div class="import-dropzone" id="sekolahImportDropzone"

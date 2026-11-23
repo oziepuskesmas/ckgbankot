@@ -1688,13 +1688,13 @@ function downloadXLSXTemplate() {
     ];
     const sampleRow1 = [
       "Luar Gedung", "2026-07-15", "3204123456780001", "Ahmad Fauzi", "1992-05-14", 34,
-      "L", "081234567890", "Kawin", "Jawa Barat", "Kab. Bandung",
+      "L", "081234567890", "Kawin", "Jawa Barat", "Kabupaten Bandung",
       "Banjaran", "Banjaran Kota", "Jl. Raya Banjaran No. 45 RT 02/05", "Wiraswasta", "Tidak",
       65, 168, 82, 23.03, 120, 80, 110, 175, 14.2, "Normal", "Normal", "Normal", "Tidak"
     ];
     const sampleRow2 = [
       "Dalam Gedung", "2026-08-05", "3204987654320002", "Siti Aminah", "1988-11-20", 37,
-      "P", "085712345678", "Kawin", "Jawa Barat", "Kab. Bandung",
+      "P", "085712345678", "Kawin", "Jawa Barat", "Kabupaten Bandung",
       "Banjaran", "Sindangpanon", "Kp. Sindangpanon RT 01/03", "Ibu Rumah Tangga", "Tidak",
       58, 155, 78, 24.14, 130, 85, 125, 190, 12.8, "Normal", "Normal", "Normal", "Tidak"
     ];
@@ -1702,224 +1702,257 @@ function downloadXLSXTemplate() {
     ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 3, 15) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template Form CKG");
-    XLSX.writeFile(wb, `Template_Import_Form_CKG_Pasien_${new Date().toISOString().substring(0, 10)}.xlsx`);
-    showToast('Template Excel Resmi Form CKG Berhasil Diunduh!', 'success');
+    XLSX.writeFile(wb, `Template_Import_Form_CKG_Pasien_Lengkap_${new Date().toISOString().substring(0, 10)}.xlsx`);
+    showToast('Template Excel Skrining CKG Lengkap Berhasil Diunduh!', 'success');
   } catch (err) {
     console.error('Download template error:', err);
     if (typeof Swal !== 'undefined') Swal.fire('Gagal Download Template', err.message, 'error');
   }
 }
 
-function executeXLSXImport() {
-  if (!selectedImportFile) {
+function downloadCkgUpdateIdentitasTemplate() {
+  try {
+    if (typeof XLSX === 'undefined') {
+      showToast('Library SheetJS XLSX belum dimuat.', 'danger');
+      return;
+    }
+
+    const headers = [
+      'NO', 'NIK (WAJIB KUNCI 16 DIGIT)', 'NAMA LENGKAP PASIEN', 'JENIS KELAMIN (L/P)',
+      'TANGGAL LAHIR (YYYY-MM-DD)', 'NO WHATSAPP', 'STATUS PERNIKAHAN', 'PEKERJAAN',
+      'PROVINSI', 'KABUPATEN / KOTA', 'KECAMATAN', 'DESA / KELURAHAN', 'ALAMAT TEMPAT TINGGAL'
+    ];
+
+    const sampleRows = [
+      [1, '3204123456780001', 'Ahmad Fauzi', 'L', '1992-05-14', '081234567890', 'Kawin', 'Wiraswasta', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Banjaran Kota', 'Jl. Raya Banjaran No. 45 RT 02/05'],
+      [2, '3204987654320002', 'Siti Aminah', 'P', '1988-11-20', '085712345678', 'Kawin', 'Ibu Rumah Tangga', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Sindangpanon', 'Kp. Sindangpanon RT 01/03'],
+      [3, '3204134109910006', 'Seny Septiany', 'P', '1991-09-01', '082198765432', 'Kawin', 'Wiraswasta', 'Jawa Barat', 'Kabupaten Bandung', 'Banjaran', 'Bojongpulus', 'Kp. Bojongpulus RT 03/01']
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+    ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 3, 16) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'UPDATE_IDENTITAS_PASIEN');
+
+    XLSX.writeFile(wb, 'Template_Update_Identitas_Pasien_CKG.xlsx');
+    showToast('Template Excel Khusus Update Identitas Pasien CKG berhasil didownload.', 'info');
+  } catch (err) {
+    console.error('Download update template error:', err);
+    if (typeof Swal !== 'undefined') Swal.fire('Gagal Download Template', err.message, 'error');
+  }
+}
+
+function mergePasienIdentity(existing, item) {
+  const updated = {
+    ...existing,
+    nama: item.nama || existing.nama,
+    nama_pasien: item.nama || existing.nama_pasien || existing.nama,
+    tanggal_lahir: item.tanggal_lahir || existing.tanggal_lahir,
+    usia: (item.usia && item.usia > 0) ? item.usia : existing.usia,
+    jenis_kelamin: item.jenis_kelamin || existing.jenis_kelamin,
+    no_whatsapp: (item.no_whatsapp !== undefined && item.no_whatsapp !== '') ? item.no_whatsapp : existing.no_whatsapp,
+    status_pernikahan: item.status_pernikahan || existing.status_pernikahan || 'Kawin',
+    pekerjaan: item.pekerjaan || existing.pekerjaan || '',
+    provinsi: item.provinsi || existing.provinsi || 'Jawa Barat',
+    kab_kota: item.kab_kota || existing.kab_kota || 'Kab. Bandung',
+    kecamatan: item.kecamatan || existing.kecamatan || 'Banjaran',
+    kelurahan: item.kelurahan || existing.kelurahan || 'Banjaran Kota',
+    alamat: item.alamat || existing.alamat || ''
+  };
+
+  // Auto-register custom wilayah if helpers exist
+  if (typeof addCustomProvinsi === 'function' && updated.provinsi) addCustomProvinsi(updated.provinsi);
+  if (typeof addCustomKabKota === 'function' && updated.kab_kota) addCustomKabKota(updated.provinsi, updated.kab_kota);
+  if (typeof addCustomKecamatan === 'function' && updated.kecamatan) addCustomKecamatan(updated.provinsi, updated.kab_kota, updated.kecamatan);
+  if (typeof addCustomKelurahan === 'function' && updated.kelurahan) addCustomKelurahan(updated.provinsi, updated.kab_kota, updated.kecamatan, updated.kelurahan);
+
+  // Preserve clinical & examination data: only overwrite if item has actual examination values
+  if (item.bb > 0 && (!existing.bb || existing.bb === 0 || item.is_full_screening)) updated.bb = item.bb;
+  if (item.tb > 0 && (!existing.tb || existing.tb === 0 || item.is_full_screening)) updated.tb = item.tb;
+  if (item.lp > 0 && (!existing.lp || existing.lp === 0 || item.is_full_screening)) updated.lp = item.lp;
+  if (item.imt && (!existing.imt || item.is_full_screening)) updated.imt = item.imt;
+  if (item.td_sistolik > 0 && (!existing.td_sistolik || existing.td_sistolik === 0 || item.is_full_screening)) updated.td_sistolik = item.td_sistolik;
+  if (item.td_diastolik > 0 && (!existing.td_diastolik || existing.td_diastolik === 0 || item.is_full_screening)) updated.td_diastolik = item.td_diastolik;
+  if (item.gula_darah && item.gula_darah !== '-' && (!existing.gula_darah || existing.gula_darah === '-' || item.is_full_screening)) updated.gula_darah = item.gula_darah;
+  if (item.kolesterol && item.kolesterol !== '-' && (!existing.kolesterol || existing.kolesterol === '-' || item.is_full_screening)) updated.kolesterol = item.kolesterol;
+  if (item.hb && item.hb !== '-' && (!existing.hb || existing.hb === '-' || item.is_full_screening)) updated.hb = item.hb;
+  if (item.telinga && item.telinga !== '-' && (!existing.telinga || existing.telinga === '-' || item.is_full_screening)) updated.telinga = item.telinga;
+  if (item.mata && item.mata !== '-' && (!existing.mata || existing.mata === '-' || item.is_full_screening)) updated.mata = item.mata;
+  if (item.gigi && item.gigi !== '-' && (!existing.gigi || existing.gigi === '-' || item.is_full_screening)) updated.gigi = item.gigi;
+  if (item.katarak && item.katarak !== '-' && (!existing.katarak || existing.katarak === '-' || item.is_full_screening)) updated.katarak = item.katarak;
+  if (item.merokok && item.merokok !== '-' && (!existing.merokok || existing.merokok === '-' || item.is_full_screening)) updated.merokok = item.merokok;
+
+  return updated;
+}
+
+async function executeXLSXImport() {
+  if (!selectedImportFile && (!pendingCkgImportData || pendingCkgImportData.length === 0)) {
     showToast('Pilih file Excel terlebih dahulu!', 'warning');
     return;
   }
 
-  const reader = new FileReader();
+  const isCkgGratisImport = (currentImportTarget === 'ckg-gratis');
+  const targetRecords = (isCkgGratisImport && Array.isArray(ckgGratisRecords) && ckgGratisRecords.length > 0)
+    ? ckgGratisRecords
+    : (Array.isArray(records) ? records : []);
 
-  reader.onload = async function (e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-
-      if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
-        Swal.fire('File Error', 'File Excel tidak memiliki worksheet.', 'error');
-        return;
-      }
-
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-
-      if (jsonRows.length === 0) {
-        Swal.fire('File Kosong', 'File Excel tidak berisi data.', 'error');
-        return;
-      }
-
-      const targetSelect = document.getElementById('importTargetPetugas');
-      const targetPetugas = (targetSelect && targetSelect.value) ? targetSelect.value : (sessionStorage.getItem('ckg_user_name') || 'Admin');
-      const tanggalInput = document.getElementById('importTanggalEntry');
-      const selectedTanggal = (tanggalInput && tanggalInput.value) ? tanggalInput.value : new Date().toISOString().substring(0, 10);
-
-      // Build records array
-      const newRecords = [];
-      let skippedInvalidNik = 0;
-      const sampleInvalidNik = [];
-
-      jsonRows.forEach(row => {
-        const getVal = (...keys) => {
-          for (let k of keys) {
-            const target = k.toLowerCase().trim();
-            for (let rowKey in row) {
-              if (rowKey.toLowerCase().trim() === target) return String(row[rowKey]).trim();
-            }
-          }
-          for (let k of keys) {
-            const target = k.toLowerCase().trim();
-            for (let rowKey in row) {
-              const keyClean = rowKey.toLowerCase().trim();
-              if (keyClean.includes(target) && !keyClean.includes('petugas') && !keyClean.includes('faskes')) return String(row[rowKey]).trim();
-            }
-          }
-          return '';
-        };
-
-        const rawNik = getVal('NIK', 'No KTP', 'Nomor NIK');
-        const nama = getVal('Nama Pasien', 'Nama Lengkap', 'Nama Pasien & NIK', 'Nama');
-        if (!nama && !rawNik) return;
-
-        const cleanNik = extractCleanNik16(rawNik);
-        // FILTER NIK WAJIB 16 DIGIT: Kurang atau lebih dari 16 digit DITOLAK / TIDAK BISA MASUK
-        if (cleanNik.length !== 16) {
-          skippedInvalidNik++;
-          if (sampleInvalidNik.length < 5) {
-            sampleInvalidNik.push({ nama: nama || 'Tanpa Nama', nik: rawNik || '(kosong)', len: cleanNik.length });
-          }
-          return;
-        }
-
-        const dobStr = formatDateToYYYYMMDD(getVal('Tanggal Lahir', 'Tgl Lahir', 'DOB')) || '1990-01-01';
-        let age = parseInt(getVal('Usia', 'Umur')) || 30;
-        if (isNaN(age) || age <= 0) {
-          try { const bd = new Date(dobStr); if (!isNaN(bd.getTime())) age = new Date().getFullYear() - bd.getFullYear(); } catch (_) { }
-        }
-
-        const jkRaw = getVal('Jenis Kelamin', 'JK') || 'L';
-        const jk = jkRaw.toUpperCase().startsWith('P') ? 'P' : 'L';
-        const bb = parseFloat(getVal('BB (kg)', 'BB', 'Berat Badan')) || 60;
-        const tb = parseFloat(getVal('TB (cm)', 'TB', 'Tinggi Badan')) || 165;
-        const lp = parseFloat(getVal('LP (cm)', 'LP', 'Lingkar Perut')) || 80;
-        const imtVal = (tb > 0) ? (bb / ((tb / 100) * (tb / 100))).toFixed(2) : '22.0';
-        const rawRowDate = getVal('Tanggal Entry', 'Tanggal Skrining', 'Tanggal', 'Tgl Entry');
-        const rowDate = formatDateToYYYYMMDD(rawRowDate) || selectedTanggal;
-
-        newRecords.push({
-          id: 'CKG-' + Date.now() + '-' + Math.floor(Math.random() * 10000),
-          jenis_kegiatan: getVal('Jenis Kegiatan', 'Kegiatan') || 'Luar Gedung',
-          nik: cleanNik,
-          nama: nama || 'Pasien Tanpa Nama',
-          tanggal_lahir: dobStr, usia: age, jenis_kelamin: jk,
-          no_whatsapp: getVal('No WhatsApp', 'WA', 'HP') || '',
-          status_pernikahan: getVal('Status Pernikahan', 'Status Nikah') || 'Kawin',
-          provinsi: getVal('Provinsi') || 'Jawa Barat',
-          kab_kota: getVal('Kab/Kota', 'Kota') || 'Kab. Bandung',
-          kecamatan: getVal('Kecamatan') || 'Banjaran',
-          kelurahan: getVal('Kelurahan', 'Desa') || 'Banjaran Kota',
-          alamat: getVal('Alamat Lengkap', 'Alamat') || 'Banjaran',
-          pekerjaan: getVal('Pekerjaan') || '',
-          merokok: getVal('Merokok') || 'Tidak',
-          bb, tb, lp, imt: imtVal,
-          td_sistolik: parseInt(getVal('TD Sistolik', 'Sistol')) || 120,
-          td_diastolik: parseInt(getVal('TD Diastolik', 'Diastol')) || 80,
-          gula_darah: getVal('Gula Darah (mg/dL)', 'Gula Darah') || '110',
-          kolesterol: getVal('Kolesterol (mg/dL)', 'Kolesterol') || '180',
-          hb: getVal('HB (g/dL)', 'HB') || '14.0',
-          telinga: getVal('Pemeriksaan Telinga', 'Telinga') || 'Normal',
-          mata: getVal('Pemeriksaan Mata', 'Mata') || 'Normal',
-          gigi: getVal('Pemeriksaan Gigi', 'Gigi') || 'Normal',
-          katarak: getVal('Pemeriksaan Katarak', 'Katarak') || 'Tidak',
-          status_validasi: 'Terverifikasi',
-          petugas_entry: targetPetugas, created_by: targetPetugas,
-          created_at: rowDate, tanggal_entry: rowDate, tanggal: rowDate
-        });
-      });
-
-      if (newRecords.length === 0) {
-        if (skippedInvalidNik > 0) {
-          const sampleList = sampleInvalidNik.map(s => `• <b>${s.nama}</b>: NIK "${s.nik}" (${s.len} digit)`).join('<br>');
-          Swal.fire({
-            icon: 'warning',
-            title: 'Semua Data Ditolak (NIK Tidak 16 Digit)',
-            html: `<div style="font-size:13px; text-align:left; line-height:1.6;">
-                    Sebanyak <b>${skippedInvalidNik} baris data pasien</b> ditolak karena NIK <b>tidak persis 16 digit</b> (kurang atau lebih).<br><br>
-                    <b>Contoh data yang ditolak:</b><br>
-                    <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:6px; padding:8px 12px; margin-top:6px; font-size:12px; color:#9f1239;">
-                      ${sampleList}
-                    </div><br>
-                    Data pasien tidak dapat masuk jika NIK bukan 16 digit angka valid. Silakan periksa kembali file Excel.
-                  </div>`,
-            confirmButtonColor: '#ef4444'
-          });
-        } else {
-          Swal.fire('Tidak Ada Data', 'Tidak ditemukan data pasien yang valid.', 'warning');
-        }
-        return;
-      }
-
-      closeImportModal();
-
-      // Show progress popup
-      Swal.fire({
-        title: `<i class="bi bi-cloud-upload"></i> Mengupload ke Cloud D1...`,
-        html: `<div style="margin:10px 0;"><div id="importProgressBar" style="width:100%;height:20px;background:#e2e8f0;border-radius:10px;overflow:hidden;"><div id="importProgressFill" style="width:0%;height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:10px;transition:width 0.3s;"></div></div><div id="importProgressText" style="margin-top:8px;font-size:13px;color:#475569;font-weight:600;">0 / ${newRecords.length} data pasien</div></div>`,
-        allowOutsideClick: false, showConfirmButton: false
-      });
-
-      // Send in chunks of 20 with progress
-      const chunkSize = 20;
-      let uploaded = 0;
-      let failed = 0;
-      const isCkgGratisImport = (currentImportTarget === 'ckg-gratis');
-      const importEndpoint = isCkgGratisImport ? '/api/ckg-gratis' : '/api/ckg';
-
-      for (let i = 0; i < newRecords.length; i += chunkSize) {
-        const chunk = newRecords.slice(i, i + chunkSize);
-        try {
-          const res = await fetch(importEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(chunk)
-          });
-          if (res.ok) { uploaded += chunk.length; } else { failed += chunk.length; }
-        } catch (err) { failed += chunk.length; }
-
-        const pct = Math.round(((uploaded + failed) / newRecords.length) * 100);
-        const fillEl = document.getElementById('importProgressFill');
-        const txtEl = document.getElementById('importProgressText');
-        if (fillEl) fillEl.style.width = pct + '%';
-        if (txtEl) txtEl.textContent = `${uploaded + failed} / ${newRecords.length} data pasien (${pct}%)`;
-      }
-
-      // Update local cache
-      if (isCkgGratisImport) {
-        ckgGratisRecords = [...newRecords, ...ckgGratisRecords];
-        saveCkgGratisRecordsToStorage();
-        renderCkgGratisTable();
-      } else {
-        records = [...newRecords, ...records];
-        saveRecordsToStorage();
-        renderApp();
-        updateCloudSyncPill(true, `D1 Online (${records.length} Rec)`);
-      }
-
-      // Show result
-      let skippedNotice = '';
-      if (skippedInvalidNik > 0) {
-        skippedNotice = `<div style="background:#fffbeb;padding:10px 12px;border-radius:8px;border:1px solid #fde68a;margin-top:8px;font-size:12.5px;color:#92400e;text-align:left;">
-          ⚠️ <strong>${skippedInvalidNik} data pasien dilewati / ditolak</strong> karena NIK tidak persis 16 digit.
-        </div>`;
-      }
-      Swal.fire({
-        icon: failed === 0 ? 'success' : 'warning',
-        title: failed === 0 ? 'Import Data Berhasil!' : 'Import Sebagian Berhasil',
-        html: `<div style="font-size:14px;line-height:1.6;">
-          <div style="background:#f0fdf4;padding:12px;border-radius:8px;border:1px solid #86efac;margin-bottom:8px;">
-            <i class="bi bi-cloud-check" style="color:#059669;font-size:18px;"></i>
-            <strong style="color:#059669;">${uploaded}</strong> data pasien berhasil disimpan ke <strong>Cloudflare D1 Database</strong>
-          </div>
-          ${failed > 0 ? `<div style="background:#fef2f2;padding:12px;border-radius:8px;border:1px solid #fecaca;"><i class="bi bi-exclamation-triangle" style="color:#dc2626;"></i> <strong style="color:#dc2626;">${failed}</strong> data gagal (disimpan lokal)</div>` : ''}
-          ${skippedNotice}
-        </div>`,
-        confirmButtonColor: '#059669'
-      });
-
-    } catch (err) {
-      console.error('Import parse error:', err);
-      Swal.fire({ icon: 'error', title: 'Gagal Import File', text: 'Format file tidak dapat diproses: ' + err.message, confirmButtonColor: '#dc2626' });
+  const existingNikMap = new Map();
+  targetRecords.forEach(r => {
+    if (isNikValidForDuplicate(r.nik)) {
+      existingNikMap.set(String(r.nik).trim(), r);
     }
-  };
+  });
 
-  reader.readAsArrayBuffer(selectedImportFile);
+  const duplicateItems = (pendingCkgImportData || []).filter(item => isNikValidForDuplicate(item.nik) && existingNikMap.has(String(item.nik).trim()));
+  const newItems = (pendingCkgImportData || []).filter(item => !isNikValidForDuplicate(item.nik) || !existingNikMap.has(String(item.nik).trim()));
+
+  let itemsToUpload = [];
+  let updatedCount = 0;
+  let newCount = 0;
+
+  if (pendingCkgImportMode === 'update_only') {
+    duplicateItems.forEach(item => {
+      const existing = existingNikMap.get(String(item.nik).trim());
+      if (existing) {
+        itemsToUpload.push(mergePasienIdentity(existing, item));
+        updatedCount++;
+      }
+    });
+  } else if (pendingCkgImportMode === 'new_only') {
+    itemsToUpload = newItems.map(item => ({ ...item, id: item.id || `CKG-${Date.now()}-${Math.floor(Math.random() * 10000)}` }));
+    newCount = newItems.length;
+  } else if (pendingCkgImportMode === 'insert_all') {
+    itemsToUpload = (pendingCkgImportData || []).map(item => ({ ...item, id: `CKG-${Date.now()}-${Math.floor(Math.random() * 10000)}` }));
+    newCount = itemsToUpload.length;
+  } else {
+    // Mode Default: 'update_and_new'
+    duplicateItems.forEach(item => {
+      const existing = existingNikMap.get(String(item.nik).trim());
+      if (existing) {
+        itemsToUpload.push(mergePasienIdentity(existing, item));
+        updatedCount++;
+      } else {
+        itemsToUpload.push({ ...item, id: item.id || `CKG-${Date.now()}-${Math.floor(Math.random() * 10000)}` });
+        newCount++;
+      }
+    });
+    newItems.forEach(item => {
+      itemsToUpload.push({ ...item, id: item.id || `CKG-${Date.now()}-${Math.floor(Math.random() * 10000)}` });
+      newCount++;
+    });
+  }
+
+  const total = itemsToUpload.length;
+  if (total === 0) {
+    showToast('Tidak ada data pasien yang diproses dengan mode yang dipilih.', 'warning');
+    return;
+  }
+
+  closeImportModal();
+
+  // Show progress popup
+  Swal.fire({
+    title: `<i class="bi bi-cloud-upload"></i> Menyimpan ke Cloud Database...`,
+    html: `
+      <div style="font-size: 13.5px; color: #475569; margin-bottom: 10px;">
+        Memproses <strong>${total}</strong> data pasien ${updatedCount > 0 ? `(${updatedCount} update identitas)` : ''} ${newCount > 0 ? `(${newCount} baru)` : ''}...
+      </div>
+      <div style="margin:10px 0;">
+        <div id="importProgressBar" style="width:100%;height:20px;background:#e2e8f0;border-radius:10px;overflow:hidden;">
+          <div id="importProgressFill" style="width:0%;height:100%;background:linear-gradient(90deg,#059669,#10b981);border-radius:10px;transition:width 0.3s;"></div>
+        </div>
+        <div id="importProgressText" style="margin-top:8px;font-size:13px;color:#475569;font-weight:600;">0 / ${total} data pasien</div>
+      </div>
+    `,
+    allowOutsideClick: false,
+    showConfirmButton: false
+  });
+
+  const chunkSize = 20;
+  let uploaded = 0;
+  let failed = 0;
+  const importEndpoint = isCkgGratisImport ? '/api/ckg-gratis' : '/api/ckg';
+
+  for (let i = 0; i < itemsToUpload.length; i += chunkSize) {
+    const chunk = itemsToUpload.slice(i, i + chunkSize);
+    try {
+      const res = await fetch(importEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk)
+      });
+      if (res.ok) { uploaded += chunk.length; } else { failed += chunk.length; }
+    } catch (err) { failed += chunk.length; }
+
+    const pct = Math.round(((uploaded + failed) / total) * 100);
+    const fillEl = document.getElementById('importProgressFill');
+    const txtEl = document.getElementById('importProgressText');
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (txtEl) txtEl.textContent = `${uploaded + failed} / ${total} data pasien (${pct}%)`;
+  }
+
+  // Update local memory & storage
+  const uploadMap = new Map();
+  itemsToUpload.forEach(u => {
+    if (u.id) uploadMap.set(String(u.id), u);
+    if (u.nik) uploadMap.set('NIK:' + String(u.nik).trim(), u);
+  });
+
+  if (isCkgGratisImport) {
+    ckgGratisRecords = ckgGratisRecords.map(r => {
+      if (r.id && uploadMap.has(String(r.id))) return uploadMap.get(String(r.id));
+      if (r.nik && uploadMap.has('NIK:' + String(r.nik).trim())) return uploadMap.get('NIK:' + String(r.nik).trim());
+      return r;
+    });
+    const existingIdSet = new Set(ckgGratisRecords.map(r => String(r.id)));
+    const newlyAdded = itemsToUpload.filter(u => !existingIdSet.has(String(u.id)));
+    ckgGratisRecords = [...newlyAdded, ...ckgGratisRecords];
+    saveCkgGratisRecordsToStorage();
+    if (typeof renderCkgGratisTable === 'function') renderCkgGratisTable();
+  } else {
+    records = records.map(r => {
+      if (r.id && uploadMap.has(String(r.id))) return uploadMap.get(String(r.id));
+      if (r.nik && uploadMap.has('NIK:' + String(r.nik).trim())) return uploadMap.get('NIK:' + String(r.nik).trim());
+      return r;
+    });
+    const existingIdSet = new Set(records.map(r => String(r.id)));
+    const newlyAdded = itemsToUpload.filter(u => !existingIdSet.has(String(u.id)));
+    records = [...newlyAdded, ...records];
+    saveRecordsToStorage();
+    renderApp();
+    if (typeof updateCloudSyncPill === 'function') updateCloudSyncPill(true, `D1 Online (${records.length} Rec)`);
+  }
+
+  let skippedNotice = '';
+  const skippedInvalidNik = window.__lastCkgImportSkippedNik || 0;
+  if (skippedInvalidNik > 0) {
+    skippedNotice = `<div style="background:#fffbeb;padding:10px 12px;border-radius:8px;border:1px solid #fde68a;margin-top:10px;font-size:12.5px;color:#92400e;text-align:left;">
+      ⚠️ <strong>${skippedInvalidNik} baris data pasien ditolak</strong> karena NIK tidak 16 digit.
+    </div>`;
+  }
+
+  let summaryText = `Sebanyak <strong>${uploaded}</strong> data pasien berhasil diproses ke Cloud Database.`;
+  if (updatedCount > 0 && newCount > 0) {
+    summaryText = `Berhasil memperbarui <strong>${updatedCount}</strong> identitas pasien terdaftar dan menambahkan <strong>${newCount}</strong> pasien baru ke Cloud D1.`;
+  } else if (updatedCount > 0) {
+    summaryText = `Berhasil memperbarui <strong>${updatedCount}</strong> identitas pasien yang sudah terdaftar di Cloud D1 (riwayat pemeriksaan medis tetap utuh).`;
+  } else if (newCount > 0) {
+    summaryText = `Berhasil menambahkan <strong>${newCount}</strong> data pasien baru ke Cloud D1.`;
+  }
+
+  Swal.fire({
+    icon: failed === 0 ? 'success' : 'warning',
+    title: failed === 0 ? 'Import & Sinkronisasi Berhasil!' : 'Import Sebagian Berhasil',
+    html: `<div style="font-size:13.5px;line-height:1.6;">
+      <div style="background:#f0fdf4;padding:12px;border-radius:8px;border:1px solid #86efac;margin-bottom:8px;text-align:left;">
+        <i class="bi bi-cloud-check-fill" style="color:#059669;font-size:18px;"></i>
+        ${summaryText}
+      </div>
+      ${failed > 0 ? `<div style="background:#fef2f2;padding:12px;border-radius:8px;border:1px solid #fecaca;text-align:left;"><i class="bi bi-exclamation-triangle" style="color:#dc2626;"></i> <strong style="color:#dc2626;">${failed}</strong> data gagal ke server.</div>` : ''}
+      ${skippedNotice}
+    </div>`,
+    confirmButtonColor: '#059669'
+  });
 }
 
 function showToast(message, type = 'info') {
@@ -2985,3 +3018,9 @@ if (typeof selectLoginSekolahOption === 'function') window.selectLoginSekolahOpt
 if (typeof clearLoginSekolahSelection === 'function') window.clearLoginSekolahSelection = clearLoginSekolahSelection;
 if (typeof handleSekolahLogin === 'function') window.handleSekolahLogin = handleSekolahLogin;
 if (typeof handleLogin === 'function') window.handleLogin = handleLogin;
+
+// Window bindings for CKG Import & Update Identitas
+window.downloadXLSXTemplate = downloadXLSXTemplate;
+window.downloadCkgUpdateIdentitasTemplate = downloadCkgUpdateIdentitasTemplate;
+window.mergePasienIdentity = mergePasienIdentity;
+window.executeXLSXImport = executeXLSXImport;
