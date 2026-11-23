@@ -135,24 +135,47 @@ function renderWilayahSearchOptions(fieldKey, keyword = '') {
   let html = '';
   let count = 0;
 
+  // 1. Render opsi "➕ Lainnya (Isi Manual)..." di PALING AWAL
+  const manualOpt = options.find(o => o.value === '__manual__');
+  if (manualOpt) {
+    const isManualSelected = (selectedVal === '__manual__');
+    const manualLabel = kw ? `➕ Isi Manual: "${escapeHtml(keyword)}"...` : `➕ Lainnya (Isi Manual)...`;
+    html += `
+      <div class="combobox-option-item ${isManualSelected ? 'selected' : ''}" 
+        style="background: #ecfdf5; border-bottom: 1.5px solid #a7f3d0; margin-bottom: 4px; color: #047857; font-weight: 800; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 8px; cursor: pointer;"
+        onclick="selectWilayahSearchOption('${fieldKey}', '__manual__', '${escapeHtml(manualOpt.textContent)}', '${escapeHtml(keyword)}')">
+        <span style="display: flex; align-items: center; gap: 8px;">
+          <i class="bi bi-plus-circle-fill" style="color: #059669; font-size: 14px;"></i>
+          <span>${manualLabel}</span>
+        </span>
+        <span style="font-size: 11px; background: #059669; color: #ffffff; padding: 2px 7px; border-radius: 6px; font-weight: 700;">Manual</span>
+      </div>
+    `;
+    count++;
+  }
+
+  // 2. Render opsi placeholder "-- Pilih ... --" jika belum ada kata kunci pencarian
+  if (!kw) {
+    const emptyOpt = options.find(o => !o.value);
+    const emptyText = emptyOpt ? emptyOpt.textContent.trim() : ids.defaultText;
+    const isSelected = !select.value;
+    html += `
+      <div class="combobox-option-item ${isSelected ? 'selected' : ''}" onclick="selectWilayahSearchOption('${fieldKey}', '', '${escapeHtml(emptyText)}')">
+        <span style="display: flex; align-items: center; gap: 8px;">
+          <i class="bi ${ids.icon}" style="color: #94a3b8; font-size: 13px;"></i>
+          <span style="color: #64748b;">${escapeHtml(emptyText)}</span>
+        </span>
+        ${isSelected ? '<i class="bi bi-check-lg" style="color: #4f46e5; font-size: 15px; font-weight: 800;"></i>' : ''}
+      </div>
+    `;
+    count++;
+  }
+
+  // 3. Render opsi normal lainnya
   options.forEach(opt => {
-    const text = opt.textContent.trim();
     const val = opt.value;
-    if (!val && !kw) {
-      const isSelected = !select.value;
-      html += `
-        <div class="combobox-option-item ${isSelected ? 'selected' : ''}" onclick="selectWilayahSearchOption('${fieldKey}', '', '${escapeHtml(text)}')">
-          <span style="display: flex; align-items: center; gap: 8px;">
-            <i class="bi ${ids.icon}" style="color: #94a3b8; font-size: 13px;"></i>
-            <span style="color: #64748b;">${escapeHtml(text)}</span>
-          </span>
-          ${isSelected ? '<i class="bi bi-check-lg" style="color: #4f46e5; font-size: 15px; font-weight: 800;"></i>' : ''}
-        </div>
-      `;
-      count++;
-      return;
-    }
-    if (!val) return;
+    if (!val || val === '__manual__') return; // Lewati empty & manual karena sudah di-render di awal
+    const text = opt.textContent.trim();
 
     if (!kw || text.toLowerCase().includes(kw) || val.toLowerCase().includes(kw)) {
       const isSelected = (val.toLowerCase() === selectedVal);
@@ -169,24 +192,29 @@ function renderWilayahSearchOptions(fieldKey, keyword = '') {
     }
   });
 
-  if (count === 0) {
+  if (count === 0 && !manualOpt) {
     html = `<div style="padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;"><i class="bi bi-search" style="font-size: 16px; display: block; margin-bottom: 4px;"></i>Tidak ada hasil untuk "${escapeHtml(keyword)}"</div>`;
   }
 
   container.innerHTML = html;
 }
 
-function selectWilayahSearchOption(fieldKey, value, text) {
+function selectWilayahSearchOption(fieldKey, value, text, prefillName = '') {
   const ids = getWilayahComboboxIds(fieldKey);
   if (!ids) return;
 
   const select = document.getElementById(ids.selectId);
+  closeAllWilayahSearchDropdowns();
   if (select) {
+    if (value === '__manual__') {
+      select.value = '__manual__';
+      triggerManualWilayahInput(ids.selectId, select._tierName || fieldKey, prefillName);
+      return;
+    }
     select.value = value;
     select.dispatchEvent(new Event('change'));
   }
   syncWilayahComboboxUI(fieldKey);
-  closeAllWilayahSearchDropdowns();
 }
 
 // Global outside-click listener for wilayah comboboxes
@@ -364,7 +392,7 @@ function addCustomKelurahan(provName, kabName, kecName, name) {
 // --------------------------------------------------------------------------
 // ✍️ DIALOG PENGISIAN MANUAL WILAYAH (SWEETALERT2 INTERACTIVE PROMPT)
 // --------------------------------------------------------------------------
-async function triggerManualWilayahInput(selectId, tier) {
+async function triggerManualWilayahInput(selectId, tier, prefillValue = '') {
   const selectEl = document.getElementById(selectId);
   if (!selectEl) return;
 
@@ -472,7 +500,7 @@ async function triggerManualWilayahInput(selectId, tier) {
   const cfg = config[tier] || config.provinsi;
 
   if (typeof Swal === 'undefined') {
-    const entered = window.prompt(`${cfg.title}\n${cfg.placeholder}:`);
+    const entered = window.prompt(`${cfg.title}\n${cfg.placeholder}:`, prefillValue || '');
     if (entered && entered.trim()) {
       await handleApplyManualWilayah(selectEl, tier, entered.trim(), group, provVal, kabVal, kecVal);
     } else if (selectEl.value === '__manual__') {
@@ -491,6 +519,7 @@ async function triggerManualWilayahInput(selectId, tier) {
       <div style="text-align: left; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 4px;">Nama Wilayah Baru:</div>
     `,
     input: 'text',
+    inputValue: prefillValue || '',
     inputPlaceholder: cfg.placeholder,
     showCancelButton: true,
     confirmButtonText: '<i class="bi bi-check-lg"></i> Simpan & Gunakan',
@@ -530,15 +559,15 @@ async function handleApplyManualWilayah(selectEl, tier, rawName, group, provVal,
     addCustomKelurahan(provVal, kabVal, kecVal, cleanName);
   }
 
-  // 2. Masukkan ke dropdown options jika belum ada (sebelum opsi __manual__)
+  // 2. Masukkan ke dropdown options jika belum ada (setelah opsi __manual__ agar __manual__ tetap di posisi paling awal)
   let opt = Array.from(selectEl.options).find(o => o.value.toLowerCase() === cleanName.toLowerCase());
   if (!opt) {
     opt = document.createElement('option');
     opt.value = cleanName;
     opt.textContent = cleanName;
     const manualOpt = Array.from(selectEl.options).find(o => o.value === '__manual__');
-    if (manualOpt) {
-      selectEl.insertBefore(opt, manualOpt);
+    if (manualOpt && manualOpt.nextSibling) {
+      selectEl.insertBefore(opt, manualOpt.nextSibling);
     } else {
       selectEl.appendChild(opt);
     }
@@ -623,8 +652,8 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
     }
 
     const manualOpt = Array.from(selectEl.options).find(o => o.value === '__manual__');
-    if (manualOpt) {
-      selectEl.insertBefore(opt, manualOpt);
+    if (manualOpt && manualOpt.nextSibling) {
+      selectEl.insertBefore(opt, manualOpt.nextSibling);
     } else {
       selectEl.appendChild(opt);
     }
@@ -636,6 +665,8 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
 
   // 1. Load Provinsi
   provSelect.innerHTML = '<option value="">-- Pilih Provinsi --</option>';
+  // Opsi isi manual di awal dropdown
+  provSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
   if (!emsifaProvincesCache) {
     emsifaProvincesCache = await fetchEmsifaWilayah('provinces.json');
   }
@@ -661,23 +692,20 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       }
     });
   }
-
-  // Opsi isi manual di akhir dropdown
-  provSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
   syncWilayahComboboxUI(provSelectId);
 
   // 2. Load Kab/Kota
   async function loadKab(provName, selectKabVal) {
     kabSelect.innerHTML = '<option value="">-- Pilih Kab/Kota --</option>';
+    kabSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
     kecSelect.innerHTML = '<option value="">-- Pilih Kecamatan --</option>';
+    kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
     kelSelect.innerHTML = '<option value="">-- Pilih Kelurahan --</option>';
+    kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
     syncWilayahComboboxUI(kabSelectId);
     syncWilayahComboboxUI(kecSelectId);
     syncWilayahComboboxUI(kelSelectId);
     if (!provName || provName === '__manual__') {
-      kabSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
-      kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
-      kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
       return;
     }
 
@@ -712,9 +740,6 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       });
     }
 
-    // Opsi isi manual di akhir dropdown
-    kabSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
-
     if (selectKabVal) {
       selectOptionByText(kabSelect, selectKabVal, 'kab_kota');
       await loadKec(provName, kabSelect.value, defKec);
@@ -726,12 +751,12 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
   // 3. Load Kecamatan
   async function loadKec(provName, kabName, selectKecVal) {
     kecSelect.innerHTML = '<option value="">-- Pilih Kecamatan --</option>';
+    kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
     kelSelect.innerHTML = '<option value="">-- Pilih Kelurahan --</option>';
+    kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
     syncWilayahComboboxUI(kecSelectId);
     syncWilayahComboboxUI(kelSelectId);
     if (!kabName || kabName === '__manual__') {
-      kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
-      kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
       return;
     }
 
@@ -766,9 +791,6 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
       });
     }
 
-    // Opsi isi manual di akhir dropdown
-    kecSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
-
     if (selectKecVal) {
       selectOptionByText(kecSelect, selectKecVal, 'kecamatan');
       await loadKel(provName, kabName, kecSelect.value, defKel);
@@ -780,9 +802,9 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
   // 4. Load Kelurahan
   async function loadKel(provName, kabName, kecName, selectKelVal) {
     kelSelect.innerHTML = '<option value="">-- Pilih Kelurahan --</option>';
+    kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 800; color: #059669; background: #ecfdf5;">➕ Lainnya (Isi Manual)...</option>`;
     syncWilayahComboboxUI(kelSelectId);
     if (!kecName || kecName === '__manual__') {
-      kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
       return;
     }
 
@@ -818,9 +840,6 @@ async function initWilayahDropdownsCascade(provSelectId, kabSelectId, kecSelectI
         }
       });
     }
-
-    // Opsi isi manual di akhir dropdown
-    kelSelect.innerHTML += `<option value="__manual__" style="font-weight: 700; color: #059669;">➕ Lainnya (Isi Manual)...</option>`;
 
     if (selectKelVal) {
       selectOptionByText(kelSelect, selectKelVal, 'kelurahan');
