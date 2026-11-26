@@ -169,7 +169,8 @@ function formatDisplayDate(val) {
     const parts = val.split(/[\/-]/);
     const d = String(parts[0]).padStart(2, '0');
     const m = String(parts[1]).padStart(2, '0');
-    return `${d}-${m}-${parts[2]}`;
+    const y = String(parts[2]).substring(0, 4);
+    return `${d}-${m}-${y}`;
   }
 
   const parsed = new Date(val);

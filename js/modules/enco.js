@@ -675,13 +675,17 @@ function renderEncoRecordsTable(records, offset) {
     const domisiliParts = [r.alamat, r.kelurahan, r.kecamatan, r.kab_kota].filter(Boolean);
     const domisiliStr = domisiliParts.length > 0 ? domisiliParts.join(', ') : '-';
 
+    const tglLahirDisplay = typeof formatDisplayDate === 'function'
+      ? formatDisplayDate(r.tanggal_lahir)
+      : (r.tanggal_lahir || '-');
+
     html += `
       <tr>
         <td style="text-align: center; font-weight: 700; color: var(--text-muted);">${no}</td>
         <td style="font-size: 12.5px; white-space: nowrap;">${escapeHtml(tglEntry)}</td>
         <td style="font-family: monospace; font-weight: 700; color: var(--primary); font-size: 13px;">${escapeHtml(r.nik)}</td>
         <td style="font-weight: 700; color: var(--text-color, #0f172a);">${escapeHtml(r.nama)}</td>
-        <td style="font-size: 12.5px;">${escapeHtml(r.tanggal_lahir || '-')}${r.jenis_kelamin ? ` (${escapeHtml(r.jenis_kelamin)})` : ''}</td>
+        <td style="font-size: 12.5px;">${escapeHtml(tglLahirDisplay)}${r.jenis_kelamin ? ` (${escapeHtml(r.jenis_kelamin)})` : ''}</td>
         <td style="font-size: 12px; color: #475569; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(domisiliStr)}">${escapeHtml(domisiliStr)}</td>
         <td>
           <span style="font-family: monospace; font-weight: 800; background: rgba(37,99,235,0.08); padding: 3px 8px; border-radius: 6px; color: #1d4ed8; border: 1px solid rgba(37,99,235,0.2);">
@@ -760,7 +764,7 @@ function viewEncoPatientDetail(nik) {
       <table style="width: 100%; border-collapse: collapse;">
         <tr><td style="width: 140px; color: #64748b; font-weight: 600;">NIK:</td><td style="font-weight: 700; font-family: monospace;">${escapeHtml(patient.nik)}</td></tr>
         <tr><td style="color: #64748b; font-weight: 600;">Nama Pasien:</td><td style="font-weight: 700;">${escapeHtml(patient.nama)}</td></tr>
-        <tr><td style="color: #64748b; font-weight: 600;">Tanggal Lahir:</td><td style="font-weight: 600;">${escapeHtml(patient.tanggal_lahir || '-')}</td></tr>
+        <tr><td style="color: #64748b; font-weight: 600;">Tanggal Lahir:</td><td style="font-weight: 600;">${escapeHtml(typeof formatDisplayDate === 'function' ? formatDisplayDate(patient.tanggal_lahir) : (patient.tanggal_lahir || '-'))}</td></tr>
         <tr><td style="color: #64748b; font-weight: 600;">Jenis Kelamin:</td><td style="font-weight: 600;">${escapeHtml(patient.jenis_kelamin || '-')}</td></tr>
         <tr><td style="color: #64748b; font-weight: 600;">Status Pernikahan:</td><td style="font-weight: 600;">${escapeHtml(statusNikah)}</td></tr>
         <tr><td style="color: #64748b; font-weight: 600;">Pekerjaan:</td><td style="font-weight: 600;">${escapeHtml(pekerjaanVal)}</td></tr>
@@ -1187,12 +1191,14 @@ async function exportEncoToExcel() {
       const statusNikah = r.status_pernikahan || rawObj?.statuspernikahan || rawObj?.status_pernikahan || rawObj?.statusnikah || rawObj?.nikah || '';
       const pekerjaanVal = r.pekerjaan || rawObj?.pekerjaan || rawObj?.job || '';
 
+      const fmtIso = (v) => typeof formatDateToYYYYMMDD === 'function' ? formatDateToYYYYMMDD(v) : (v || '');
+
       return {
         'No': idx + 1,
-        'Tanggal Entry': r.tanggal_daftar || '',
+        'Tanggal Entry': fmtIso(r.tanggal_daftar || ''),
         'NIK': String(r.nik || ''),
         'Nama Pasien': r.nama || '',
-        'Tanggal Lahir': r.tanggal_lahir || '',
+        'Tanggal Lahir': fmtIso(r.tanggal_lahir || ''),
         'Jenis Kelamin': r.jenis_kelamin || '',
         'Status Pernikahan': statusNikah,
         'Pekerjaan': pekerjaanVal,
@@ -1205,7 +1211,7 @@ async function exportEncoToExcel() {
         'Kategori': r.kategori || 'Umum',
         'Status Pendaftaran': r.status_pendaftaran || '',
         'Status Pelayanan': r.status_pelayanan || '',
-        'Tanggal Pelayanan': r.tanggal_pelayanan || '',
+        'Tanggal Pelayanan': fmtIso(r.tanggal_pelayanan || ''),
         'Petugas ENCO': r.petugas_enco || '',
         'Faskes': r.faskes || 'Puskesmas Banjaran Kota'
       };

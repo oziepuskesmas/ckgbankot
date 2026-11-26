@@ -3425,6 +3425,21 @@ ${rawText}`;
               updated_at = excluded.updated_at
           `);
 
+          const normalizeEncoDate = (val) => {
+            if (val === null || val === undefined || val === '') return '';
+            const s = String(val).trim();
+            if (!s) return '';
+            if (!isNaN(s) && Number(s) > 1000 && Number(s) < 100000) {
+              const d = new Date(Math.round((Number(s) - 25569) * 86400 * 1000));
+              if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+            }
+            if (s.includes('T') && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.split('T')[0];
+            if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+            const m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+            if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+            return s;
+          };
+
           const statements = uniqueList.map(p => {
             const rawNik = String(p.nik || '').replace(/\D/g, '').trim() || String(p.nik || '').trim();
             const id = `enco_${rawNik}`;
@@ -3434,7 +3449,7 @@ ${rawText}`;
               id,
               rawNik,
               String(p.nama || '').trim(),
-              String(p.tanggal_lahir || p.tanggallahir || p.dob || p.tgllahir || '').trim(),
+              normalizeEncoDate(p.tanggal_lahir || p.tanggallahir || p.dob || p.tgllahir || ''),
               String(p.jenis_kelamin || p.jeniskelamin || p.jk || p.gender || '').trim(),
               String(p.status_pernikahan || p.statuspernikahan || p.statusnikah || p.nikah || '').trim(),
               String(p.pekerjaan || p.job || '').trim(),
