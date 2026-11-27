@@ -836,32 +836,76 @@ async function confirmDeleteEncoData() {
     return;
   }
 
+  let categories = [];
+  try {
+    const statsRes = await fetch('/api/enco/stats');
+    const statsJson = await statsRes.json();
+    if (statsJson?.success && Array.isArray(statsJson?.stats?.categories)) {
+      categories = statsJson.stats.categories;
+    }
+  } catch (_) { }
+
+  const catOptionsHtml = categories
+    .map(c => {
+      const name = String(c.kategori || 'Umum');
+      const count = Number(c.count || 0).toLocaleString('id-ID');
+      return `<option value="cat:${escapeHtml(name)}">Pasien Kategori: ${escapeHtml(name)} (${count} data)</option>`;
+    })
+    .join('');
+
   const result = await Swal.fire({
     title: 'Hapus Database ENCO?',
-    text: 'Pilih data yang ingin Anda bersihkan:',
+    html: `
+      <div style="text-align: left; font-size: 13.5px;">
+        <p style="margin-bottom: 10px; color: #475569;">Pilih kategori atau jenis data ENCO yang ingin dihapus:</p>
+        <select id="swalEncoDeleteTarget" class="swal2-select" style="width: 100%; margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13.5px;">
+          <option value="">-- Pilih Data yang Akan Dihapus --</option>
+          ${catOptionsHtml}
+          <option value="all_records">Semua Data Pasien ENCO (Semua Kategori)</option>
+          <option value="all_logs">Semua Log Aktivitas Bot</option>
+        </select>
+      </div>
+    `,
     icon: 'warning',
     showCancelButton: true,
-    showDenyButton: true,
     confirmButtonColor: '#dc2626',
-    denyButtonColor: '#7c3aed',
     cancelButtonColor: '#64748b',
-    confirmButtonText: 'Hapus Semua Pasien',
-    denyButtonText: 'Hapus Semua Log Bot',
-    cancelButtonText: 'Batal'
+    confirmButtonText: '<i class="bi bi-trash3-fill"></i> Hapus Sekarang',
+    cancelButtonText: 'Batal',
+    preConfirm: () => {
+      const val = document.getElementById('swalEncoDeleteTarget')?.value || '';
+      if (!val) {
+        Swal.showValidationMessage('Silakan pilih kategori atau data yang ingin dihapus terlebih dahulu.');
+        return false;
+      }
+      return val;
+    }
   });
 
-  let deleteType = '';
-  if (result.isConfirmed) deleteType = 'all_records';
-  else if (result.isDenied) deleteType = 'all_logs';
-  else return;
+  if (!result.isConfirmed || !result.value) return;
+
+  const selectedTarget = result.value;
+  let endpoint = '';
+  let isLogDelete = false;
+  if (selectedTarget.startsWith('cat:')) {
+    const categoryName = selectedTarget.slice(4);
+    endpoint = `/api/enco/delete?type=by_category&category=${encodeURIComponent(categoryName)}`;
+  } else if (selectedTarget === 'all_records') {
+    endpoint = '/api/enco/delete?type=all_records';
+  } else if (selectedTarget === 'all_logs') {
+    endpoint = '/api/enco/delete?type=all_logs';
+    isLogDelete = true;
+  } else {
+    return;
+  }
 
   try {
-    const res = await fetch(`/api/enco/delete?type=${deleteType}`, { method: 'DELETE' });
+    const res = await fetch(endpoint, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
       showToast(data.message || 'Data berhasil dibersihkan', 'success');
       loadEncoStats();
-      if (deleteType === 'all_records') loadEncoRecords(0);
+      if (!isLogDelete) loadEncoRecords(0);
       else loadEncoLogs();
     } else {
       throw new Error(data.error || 'Gagal menghapus');

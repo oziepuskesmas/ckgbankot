@@ -3652,6 +3652,13 @@ ${rawText}`;
           const selesaiLayanan = await env.DB.prepare(`SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE ${notPasienFilter} AND status_pelayanan = 'Selesai Pelayanan'`).first();
           const totalLogs = await env.DB.prepare('SELECT COUNT(*) as c FROM enco_logs').first();
           const lastLog = await env.DB.prepare('SELECT petugas, created_at FROM enco_logs ORDER BY created_at DESC LIMIT 1').first();
+          const catRows = await env.DB.prepare(`
+            SELECT COALESCE(NULLIF(TRIM(kategori), ''), 'Umum') as kategori, COUNT(DISTINCT TRIM(nik)) as count
+            FROM enco_pasien
+            WHERE ${notPasienFilter}
+            GROUP BY COALESCE(NULLIF(TRIM(kategori), ''), 'Umum')
+            ORDER BY count DESC
+          `).all();
 
           return new Response(JSON.stringify({
             success: true,
@@ -3661,7 +3668,8 @@ ${rawText}`;
               total_selesai_layanan: selesaiLayanan?.c || 0,
               total_logs: totalLogs?.c || 0,
               last_petugas: lastLog?.petugas || '-',
-              last_active: lastLog?.created_at || '-'
+              last_active: lastLog?.created_at || '-',
+              categories: catRows?.results || []
             }
           }), { headers: corsHeaders });
         } catch (err) {
@@ -3678,7 +3686,20 @@ ${rawText}`;
           }
           const type = url.searchParams.get('type') || body.type || 'pasien';
           const id = url.searchParams.get('id') || body.id;
+          const category = (url.searchParams.get('category') || body.category || '').trim();
 
+          if (type === 'by_category' && category) {
+            const delRes = await env.DB.prepare(`
+              DELETE FROM enco_pasien
+              WHERE UPPER(COALESCE(NULLIF(TRIM(kategori), ''), 'Umum')) = UPPER(?)
+            `).bind(category).run();
+            const deletedCount = delRes?.meta?.changes ?? 0;
+            return new Response(JSON.stringify({
+              success: true,
+              deleted: deletedCount,
+              message: `Data pasien kategori "${category}" (${deletedCount} baris) berhasil dihapus`
+            }), { headers: corsHeaders });
+          }
           if (type === 'all_records') {
             await env.DB.prepare('DELETE FROM enco_pasien').run();
             return new Response(JSON.stringify({ success: true, message: 'Semua rekam pasien ENCO berhasil dihapus' }), { headers: corsHeaders });
