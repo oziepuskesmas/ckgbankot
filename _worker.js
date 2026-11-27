@@ -3262,6 +3262,11 @@ ${rawText}`;
           `).run();
         } catch (_) { }
 
+        // Hapus data bernama 'Pasien' (anomali fallback) agar tidak muncul di web ckgbankot
+        try {
+          await env.DB.prepare("DELETE FROM enco_pasien WHERE TRIM(LOWER(COALESCE(nama, ''))) = 'pasien'").run();
+        } catch (_) { }
+
         // Buat UNIQUE Index pada kolom NIK agar tidak pernah ada data ganda
         try {
           await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_enco_pasien_nik_unique ON enco_pasien(nik)").run();
@@ -3567,7 +3572,7 @@ ${rawText}`;
           const limit = parseInt(url.searchParams.get('limit') || '50', 10);
           const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
-          let whereClause = 'WHERE 1=1';
+          let whereClause = "WHERE TRIM(LOWER(COALESCE(nama, ''))) != 'pasien'";
           const params = [];
 
           if (search) {
@@ -3641,9 +3646,10 @@ ${rawText}`;
       // 7. GET /api/enco/stats (Statistik Ringkasan ENCO)
       if (url.pathname === '/api/enco/stats' && request.method === 'GET') {
         try {
-          const totalPasien = await env.DB.prepare('SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien').first();
-          const terdaftar = await env.DB.prepare("SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE status_pendaftaran LIKE '%Terdaftar%'").first();
-          const selesaiLayanan = await env.DB.prepare("SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE status_pelayanan = 'Selesai Pelayanan'").first();
+          const notPasienFilter = "TRIM(LOWER(COALESCE(nama, ''))) != 'pasien'";
+          const totalPasien = await env.DB.prepare(`SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE ${notPasienFilter}`).first();
+          const terdaftar = await env.DB.prepare(`SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE ${notPasienFilter} AND status_pendaftaran LIKE '%Terdaftar%'`).first();
+          const selesaiLayanan = await env.DB.prepare(`SELECT COUNT(DISTINCT TRIM(nik)) as c FROM enco_pasien WHERE ${notPasienFilter} AND status_pelayanan = 'Selesai Pelayanan'`).first();
           const totalLogs = await env.DB.prepare('SELECT COUNT(*) as c FROM enco_logs').first();
           const lastLog = await env.DB.prepare('SELECT petugas, created_at FROM enco_logs ORDER BY created_at DESC LIMIT 1').first();
 
@@ -4299,7 +4305,7 @@ ${rawText}`;
             }
           } catch (_) { }
 
-          // 3. Catat juga ke enco_pasien jika pendaftaran sukses
+          // 3. Catat juga ke enco_pasien jika pendaftaran sukses dan nama pasien valid (bukan fallback 'Pasien')
           if (statusReg === 'berhasil' || statusReg === 'Sudah Terdaftar') {
             try {
               const queueItem = await env.DB.prepare('SELECT * FROM enco_bot_queue WHERE nik = ?').bind(cleanNik).first();
@@ -4308,46 +4314,49 @@ ${rawText}`;
                 try { pData = JSON.parse(queueItem.data_json); } catch (_) { }
               }
 
-              await env.DB.prepare(`
-                INSERT INTO enco_pasien (
-                  id, nik, nama, tanggal_lahir, jenis_kelamin, status_pernikahan,
-                  pekerjaan, provinsi, kab_kota, kecamatan, kelurahan, alamat,
-                  no_tiket, kategori, status_pendaftaran, status_pelayanan,
-                  tanggal_daftar, tanggal_pelayanan, petugas_enco, faskes,
-                  raw_details, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(nik) DO UPDATE SET
-                  nama = excluded.nama,
-                  no_tiket = COALESCE(NULLIF(excluded.no_tiket, ''), enco_pasien.no_tiket),
-                  status_pendaftaran = excluded.status_pendaftaran,
-                  status_pelayanan = CASE WHEN excluded.status_pelayanan != 'Belum Pelayanan' THEN excluded.status_pelayanan ELSE enco_pasien.status_pelayanan END,
-                  tanggal_pelayanan = CASE WHEN excluded.status_pelayanan = 'Selesai Pelayanan' THEN excluded.tanggal_pelayanan ELSE enco_pasien.tanggal_pelayanan END,
-                  updated_at = excluded.updated_at
-              `).bind(
-                'ENCO-' + cleanNik,
-                cleanNik,
-                queueItem?.nama || pData.nama || 'Pasien',
-                pData.tanggal_lahir || pData.tanggallahir || '1990-01-01',
-                pData.jenis_kelamin || pData.jeniskelamin || 'L',
-                pData.status_pernikahan || 'MENIKAH',
-                pData.pekerjaan || 'Lainnya',
-                pData.provinsi || 'Jawa Barat',
-                pData.kab_kota || 'Kab. Bandung',
-                pData.kecamatan || 'Banjaran',
-                pData.kelurahan || 'Banjaran Kota',
-                pData.alamat || 'Banjaran',
-                noTiket || queueItem?.no_tiket || '',
-                queueItem?.jenis || 'Umum',
-                'Sudah Terdaftar',
-                (statusPel === 'selesai' || statusPel === 'Selesai Pelayanan') ? 'Selesai Pelayanan' : 'Belum Pelayanan',
-                todayDate,
-                (statusPel === 'selesai' || statusPel === 'Selesai Pelayanan') ? todayDate : '',
-                body.petugas || queueItem?.petugas_antrean || 'Petugas ENCO',
-                'Puskesmas Banjaran Kota',
-                JSON.stringify(pData),
-                nowStr,
-                nowStr
-              ).run();
+              const resolvedNama = String(queueItem?.nama || pData.nama || body.nama || '').trim();
+              if (resolvedNama && resolvedNama.toLowerCase() !== 'pasien') {
+                await env.DB.prepare(`
+                  INSERT INTO enco_pasien (
+                    id, nik, nama, tanggal_lahir, jenis_kelamin, status_pernikahan,
+                    pekerjaan, provinsi, kab_kota, kecamatan, kelurahan, alamat,
+                    no_tiket, kategori, status_pendaftaran, status_pelayanan,
+                    tanggal_daftar, tanggal_pelayanan, petugas_enco, faskes,
+                    raw_details, created_at, updated_at
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  ON CONFLICT(nik) DO UPDATE SET
+                    nama = CASE WHEN excluded.nama != '' AND LOWER(excluded.nama) != 'pasien' THEN excluded.nama ELSE enco_pasien.nama END,
+                    no_tiket = COALESCE(NULLIF(excluded.no_tiket, ''), enco_pasien.no_tiket),
+                    status_pendaftaran = excluded.status_pendaftaran,
+                    status_pelayanan = CASE WHEN excluded.status_pelayanan != 'Belum Pelayanan' THEN excluded.status_pelayanan ELSE enco_pasien.status_pelayanan END,
+                    tanggal_pelayanan = CASE WHEN excluded.status_pelayanan = 'Selesai Pelayanan' THEN excluded.tanggal_pelayanan ELSE enco_pasien.tanggal_pelayanan END,
+                    updated_at = excluded.updated_at
+                `).bind(
+                  'ENCO-' + cleanNik,
+                  cleanNik,
+                  resolvedNama,
+                  pData.tanggal_lahir || pData.tanggallahir || '1990-01-01',
+                  pData.jenis_kelamin || pData.jeniskelamin || 'L',
+                  pData.status_pernikahan || 'MENIKAH',
+                  pData.pekerjaan || 'Lainnya',
+                  pData.provinsi || 'Jawa Barat',
+                  pData.kab_kota || 'Kab. Bandung',
+                  pData.kecamatan || 'Banjaran',
+                  pData.kelurahan || 'Banjaran Kota',
+                  pData.alamat || 'Banjaran',
+                  noTiket || queueItem?.no_tiket || '',
+                  queueItem?.jenis || 'Umum',
+                  'Sudah Terdaftar',
+                  (statusPel === 'selesai' || statusPel === 'Selesai Pelayanan') ? 'Selesai Pelayanan' : 'Belum Pelayanan',
+                  todayDate,
+                  (statusPel === 'selesai' || statusPel === 'Selesai Pelayanan') ? todayDate : '',
+                  body.petugas || queueItem?.petugas_antrean || 'Petugas ENCO',
+                  'Puskesmas Banjaran Kota',
+                  JSON.stringify(pData),
+                  nowStr,
+                  nowStr
+                ).run();
+              }
             } catch (_) { }
           }
 
